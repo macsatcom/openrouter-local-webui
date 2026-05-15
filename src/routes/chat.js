@@ -46,11 +46,8 @@ router.get('/models', requireAuth, async (req, res) => {
   const onlineModels = getOnlineModels();
 
   let filtered = allModels;
-  if (!req.user.is_admin) {
-    const userExposed = getUserExposedModels(req.user.id);
-    if (userExposed.length === 0) {
-      return res.json({ models: [] });
-    }
+  const userExposed = getUserExposedModels(req.user.id);
+  if (userExposed.length > 0) {
     filtered = allModels.filter(m => userExposed.includes(m.id));
   }
 
