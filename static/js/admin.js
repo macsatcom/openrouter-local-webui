@@ -2,6 +2,8 @@ let allUsers = [];
 let allModels = [];
 let adminModels = [];
 let editingUserId = null;
+let userSelectedModels = [];
+let onlineSelectedModels = [];
 let chatLogsOffset = 0;
 let imageLogsOffset = 0;
 
@@ -35,7 +37,8 @@ async function loadSettings() {
   const data = await res.json();
   document.getElementById('apiKey').value = data.openrouter_api_key || '';
   document.getElementById('loggingEnabled').checked = data.logging_enabled;
-  renderOnlineModelList(data.online_models || []);
+  onlineSelectedModels = data.online_models || [];
+  renderOnlineModelList(onlineSelectedModels);
 }
 
 async function loadAllModels() {
@@ -64,17 +67,30 @@ async function saveLogging() {
   alert('Logging setting saved');
 }
 
-function renderOnlineModelList(onlineModels) {
+function getOnlineModelPool() {
+  if (adminModels.length > 0) {
+    return allModels.filter(m => adminModels.includes(m.id));
+  }
+  return allModels;
+}
+
+function renderOnlineModelList(savedModels) {
+  onlineSelectedModels = savedModels || onlineSelectedModels;
   const listEl = document.getElementById('onlineModelList');
   if (allModels.length === 0) {
     listEl.innerHTML = '<p style="color:#888; padding:10px;">No models available. Configure API key first.</p>';
     return;
   }
+  const pool = getOnlineModelPool();
+  if (pool.length === 0) {
+    listEl.innerHTML = '<p style="color:#888; padding:10px;">No models available. Select models for the admin user first.</p>';
+    return;
+  }
   const filter = (document.getElementById('onlineModelFilter')?.value || '').toLowerCase();
-  const filtered = filter ? allModels.filter(m => (m.display_name || m.name || m.id).toLowerCase().includes(filter)) : allModels;
+  const filtered = filter ? pool.filter(m => (m.display_name || m.name || m.id).toLowerCase().includes(filter)) : pool;
   const header = `<div class="model-list-header"><span></span><span>Model (input/output)</span></div>`;
   const items = filtered.map(m => {
-    const checked = onlineModels.includes(m.id) ? 'checked' : '';
+    const checked = onlineSelectedModels.includes(m.id) ? 'checked' : '';
     const displayName = escapeHtml(m.display_name || m.name || m.id);
     return `<div class="model-item"><input type="checkbox" value="${m.id}" ${checked}><span>${displayName}</span></div>`;
   }).join('');
@@ -82,11 +98,10 @@ function renderOnlineModelList(onlineModels) {
 }
 
 async function saveOnlineModels() {
-  const selected = [...document.querySelectorAll('#onlineModelList input:checked')].map(i => i.value);
   await fetch('/api/admin/settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ online_models: selected })
+    body: JSON.stringify({ online_models: onlineSelectedModels })
   });
   alert('Online models saved');
 }
@@ -136,7 +151,8 @@ function showCreateUser() {
   document.getElementById('newMonthlyLimit').value = -1;
   const filterInput = document.getElementById('userModelFilter');
   if (filterInput) filterInput.value = '';
-  renderModelList([]);
+  userSelectedModels = [];
+  renderModelList();
   document.getElementById('userModal').classList.add('active');
 }
 
@@ -147,7 +163,7 @@ function getModelPool() {
   return allModels;
 }
 
-function renderModelList(selectedModels) {
+function renderModelList() {
   const listEl = document.getElementById('userModelList');
   if (allModels.length === 0) {
     listEl.innerHTML = '<p style="color:#888; padding:10px;">No models available. Configure API key first.</p>';
@@ -163,12 +179,38 @@ function renderModelList(selectedModels) {
   const filtered = filter ? pool.filter(m => (m.display_name || m.name || m.id).toLowerCase().includes(filter)) : pool;
   const header = `<div class="model-list-header"><span></span><span>Model (input/output)</span></div>`;
   const items = filtered.map(m => {
-    const checked = selectedModels.includes(m.id) ? 'checked' : '';
+    const checked = userSelectedModels.includes(m.id) ? 'checked' : '';
     const displayName = escapeHtml(m.display_name || m.name || m.id);
     return `<div class="model-item"><input type="checkbox" value="${m.id}" ${checked}><span>${displayName}</span></div>`;
   }).join('');
   listEl.innerHTML = header + items;
 }
+
+// Event delegation: keep userSelectedModels in sync with checkbox state
+document.getElementById('userModelList').addEventListener('change', (e) => {
+  if (e.target.type === 'checkbox') {
+    if (e.target.checked) {
+      if (!userSelectedModels.includes(e.target.value)) {
+        userSelectedModels.push(e.target.value);
+      }
+    } else {
+      userSelectedModels = userSelectedModels.filter(id => id !== e.target.value);
+    }
+  }
+});
+
+// Event delegation: keep onlineSelectedModels in sync
+document.getElementById('onlineModelList').addEventListener('change', (e) => {
+  if (e.target.type === 'checkbox') {
+    if (e.target.checked) {
+      if (!onlineSelectedModels.includes(e.target.value)) {
+        onlineSelectedModels.push(e.target.value);
+      }
+    } else {
+      onlineSelectedModels = onlineSelectedModels.filter(id => id !== e.target.value);
+    }
+  }
+});
 
 async function editUser(id) {
   const user = allUsers.find(u => u.id === id);
@@ -185,7 +227,8 @@ async function editUser(id) {
   document.getElementById('passwordHint').style.display = 'inline';
   document.getElementById('newDailyLimit').value = user.daily_limit_cents;
   document.getElementById('newMonthlyLimit').value = user.monthly_limit_cents;
-  renderModelList(user.exposed_models || []);
+  userSelectedModels = [...(user.exposed_models || [])];
+  renderModelList();
   document.getElementById('userModal').classList.add('active');
 }
 
@@ -195,15 +238,25 @@ function closeUserModal() {
 }
 
 function selectAllModels() {
-  document.querySelectorAll('#userModelList input[type="checkbox"]').forEach(cb => cb.checked = true);
+  document.querySelectorAll('#userModelList input[type="checkbox"]').forEach(cb => {
+    cb.checked = true;
+    if (!userSelectedModels.includes(cb.value)) {
+      userSelectedModels.push(cb.value);
+    }
+  });
 }
 
 function clearAllModels() {
-  document.querySelectorAll('#userModelList input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('#userModelList input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+  // Only clear models that are currently visible (filtered)
+  const visibleIds = [...document.querySelectorAll('#userModelList input[type="checkbox"]')].map(cb => cb.value);
+  userSelectedModels = userSelectedModels.filter(id => !visibleIds.includes(id));
 }
 
 function getSelectedModels() {
-  return [...document.querySelectorAll('#userModelList input:checked')].map(i => i.value);
+  return [...userSelectedModels];
 }
 
 async function saveUser() {

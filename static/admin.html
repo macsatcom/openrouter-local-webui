@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0d0d0d">
+  <link rel="manifest" href="/manifest.json">
   <title>OpenRouter Local WebUI - Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -174,7 +178,7 @@
       <div class="form-group">
         <label>Allowed Models</label>
         <p style="color:#888; font-size: 12px; margin-bottom: 5px;">Select which models this user can access. Leave all unchecked for no access.</p>
-        <input type="text" id="userModelFilter" class="model-search" placeholder="Filter models..." oninput="renderModelList(getSelectedModels())" style="margin-bottom: 6px;">
+        <input type="text" id="userModelFilter" class="model-search" placeholder="Filter models..." oninput="renderModelList()" style="margin-bottom: 6px;">
         <div id="userModelList" class="model-list" style="height: 200px;"></div>
         <button class="btn" style="margin-top: 5px;" onclick="selectAllModels()">Select All</button>
         <button class="btn" style="margin-top: 5px;" onclick="clearAllModels()">Clear All</button>
@@ -210,6 +214,7 @@
   </div>
 
   <script src="/js/admin.js"></script>
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
   <script>
     async function logout(e) {
       e.preventDefault();
