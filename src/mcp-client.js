@@ -16,6 +16,19 @@ function parseArgs(argsJson) {
   }
 }
 
+function parseEnv(envJson) {
+  if (!envJson) return undefined;
+  try {
+    const parsed = JSON.parse(envJson);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
 export async function connectToMcpServers(serverConfigs) {
   const clients = [];
 
@@ -33,7 +46,8 @@ export async function connectToMcpServers(serverConfigs) {
       } else {
         transport = new StdioClientTransport({
           command: server.command,
-          args: parseArgs(server.args)
+          args: parseArgs(server.args),
+          env: parseEnv(server.env)
         });
       }
 

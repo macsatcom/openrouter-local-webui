@@ -54,10 +54,12 @@
                 <option value="">None</option>
               </select>
             </div>
-            <div class="mcp-select" id="mcpServerCheckboxes" style="display:none; margin-top: 6px;">
-              <span title="Model Context Protocol — gives AI access to external tools">MCP:</span>
+            <div class="mcp-bar" id="mcpBar" style="display:none;">
+              <div class="mcp-select" id="mcpServerCheckboxes">
+                <span title="Model Context Protocol — gives AI access to external tools">MCP:</span>
+              </div>
+              <button class="btn" id="clearBtn">Clear</button>
             </div>
-            <button class="btn" id="clearBtn">Clear</button>
           </div>
 
           <div class="chat-messages" id="messages"></div>
@@ -79,6 +81,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
   <script src="/js/chat.js"></script>
   <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
   <script>

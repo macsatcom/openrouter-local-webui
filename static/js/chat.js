@@ -1,7 +1,20 @@
+if (typeof marked !== 'undefined') {
+  marked.setOptions({ breaks: true });
+  marked.use({
+    renderer: {
+      link({ href, title, text }) {
+        const titleAttr = title ? ` title="${title}"` : '';
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer"${titleAttr}>${text}</a>`;
+      }
+    }
+  });
+}
+
 const modelSelect = document.getElementById('modelSelect');
 const modelFilterInput = document.getElementById('modelFilter');
 const modelDropdown = document.getElementById('modelDropdown');
 const skillSelect = document.getElementById('skillSelect');
+const mcpBar = document.getElementById('mcpBar');
 const mcpCheckboxes = document.getElementById('mcpServerCheckboxes');
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('input');
@@ -69,16 +82,16 @@ async function loadMcpServers() {
     const res = await fetch('/api/admin/mcp/servers-enabled');
     const data = await res.json();
     if (!data.servers || data.servers.length === 0) {
-      mcpCheckboxes.style.display = 'none';
-      return;
+      mcpBar.style.display = 'none';
+    } else {
+      mcpBar.style.display = '';
+      mcpCheckboxes.innerHTML = '<span title="Model Context Protocol">MCP:</span> ' +
+        data.servers.map(s =>
+          `<label style="cursor:pointer;margin-left:8px;"><input type="checkbox" class="mcp-cb" value="${s.id}" title="${escapeHtml(s.description || '')}"> ${escapeHtml(s.name)}</label>`
+        ).join('');
     }
-    mcpCheckboxes.style.display = '';
-    mcpCheckboxes.innerHTML = '<span title="Model Context Protocol">MCP:</span> ' +
-      data.servers.map(s =>
-        `<label style="cursor:pointer;margin-left:8px;"><input type="checkbox" class="mcp-cb" value="${s.id}" title="${escapeHtml(s.description || '')}"> ${escapeHtml(s.name)}</label>`
-      ).join('');
   } catch {
-    mcpCheckboxes.style.display = 'none';
+    mcpBar.style.display = 'none';
   }
 }
 
@@ -165,7 +178,7 @@ function renderMessages(msgs) {
         contentHtml = escapeHtml(m.content);
       }
     } else {
-      contentHtml = escapeHtml(m.content);
+      contentHtml = marked.parse(escapeHtml(m.content));
     }
     return `
       <div class="message ${m.role}">

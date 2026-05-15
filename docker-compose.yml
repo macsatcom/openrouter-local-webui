@@ -1,5 +1,6 @@
 services:
   openrouter-webui:
+    build: .
     image: ghcr.io/macsatcom/openrouter-local-webui:latest
     container_name: openrouter-webui
     ports:

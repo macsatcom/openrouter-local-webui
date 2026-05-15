@@ -6,3 +6,5 @@ generated-images/
 *.db-shm
 *.db-wal
 .DS_Store
+server.log
+venv/

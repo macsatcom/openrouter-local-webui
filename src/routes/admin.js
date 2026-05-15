@@ -252,7 +252,7 @@ router.get('/mcp/servers', requireAdmin, (req, res) => {
 });
 
 router.post('/mcp/servers', requireAdmin, (req, res) => {
-  const { name, description, transport_type, command, args, url, auth_token } = req.body;
+  const { name, description, transport_type, command, args, url, auth_token, env } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Name required' });
   }
@@ -269,7 +269,8 @@ router.post('/mcp/servers', requireAdmin, (req, res) => {
     const result = queries.createMcpServer.run(
       name, description || '', transport_type,
       command || null, args ? (typeof args === 'string' ? args : JSON.stringify(args)) : null,
-      url || null, auth_token || null, 1
+      url || null, auth_token || null,
+      env ? (typeof env === 'string' ? env : JSON.stringify(env)) : null, 1
     );
     res.json({ success: true, id: result.lastInsertRowid });
   } catch (error) {
@@ -282,7 +283,7 @@ router.post('/mcp/servers', requireAdmin, (req, res) => {
 
 router.put('/mcp/servers/:id', requireAdmin, (req, res) => {
   const serverId = parseInt(req.params.id);
-  const { name, description, transport_type, command, args, url, auth_token, enabled } = req.body;
+  const { name, description, transport_type, command, args, url, auth_token, env, enabled } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Name required' });
   }
@@ -292,7 +293,9 @@ router.put('/mcp/servers/:id', requireAdmin, (req, res) => {
   queries.updateMcpServer.run(
     name, description || '', transport_type,
     command || null, args ? (typeof args === 'string' ? args : JSON.stringify(args)) : null,
-    url || null, auth_token || null, enabled !== undefined ? (enabled ? 1 : 0) : 1,
+    url || null, auth_token || null,
+    env ? (typeof env === 'string' ? env : JSON.stringify(env)) : null,
+    enabled !== undefined ? (enabled ? 1 : 0) : 1,
     serverId
   );
   res.json({ success: true });

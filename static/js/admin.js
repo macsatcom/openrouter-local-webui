@@ -477,6 +477,7 @@ function showCreateMcpServer() {
   document.getElementById('mcpServerTransport').value = 'stdio';
   document.getElementById('mcpServerCommand').value = '';
   document.getElementById('mcpServerArgs').value = '';
+  document.getElementById('mcpServerEnv').value = '';
   document.getElementById('mcpServerUrl').value = '';
   document.getElementById('mcpServerAuthToken').value = '';
   toggleMcpTransportFields();
@@ -496,6 +497,7 @@ function editMcpServer(id) {
       document.getElementById('mcpServerTransport').value = server.transport_type || 'stdio';
       document.getElementById('mcpServerCommand').value = server.command || '';
       document.getElementById('mcpServerArgs').value = server.args || '';
+      document.getElementById('mcpServerEnv').value = server.env || '';
       document.getElementById('mcpServerUrl').value = server.url || '';
       document.getElementById('mcpServerAuthToken').value = server.auth_token || '';
       toggleMcpTransportFields();
@@ -520,6 +522,7 @@ async function saveMcpServer() {
   const transport_type = document.getElementById('mcpServerTransport').value;
   const command = document.getElementById('mcpServerCommand').value.trim();
   const args = document.getElementById('mcpServerArgs').value.trim();
+  const env = document.getElementById('mcpServerEnv').value.trim();
   const url = document.getElementById('mcpServerUrl').value.trim();
   const auth_token = document.getElementById('mcpServerAuthToken').value.trim();
 
@@ -535,10 +538,19 @@ async function saveMcpServer() {
     alert('URL is required for SSE transport');
     return;
   }
+  if (env) {
+    try {
+      JSON.parse(env);
+    } catch {
+      alert('Environment Variables must be valid JSON');
+      return;
+    }
+  }
 
   const body = { name, description, transport_type };
   if (command) body.command = command;
   if (args) body.args = args;
+  if (env) body.env = env;
   if (url) body.url = url;
   if (auth_token) body.auth_token = auth_token;
 

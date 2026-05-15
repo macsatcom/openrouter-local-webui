@@ -118,10 +118,17 @@ db.exec(`
     args TEXT,
     url TEXT,
     auth_token TEXT,
+    env TEXT,
     enabled INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+try {
+  db.exec('ALTER TABLE mcp_servers ADD COLUMN env TEXT');
+} catch (e) {
+  /* column already exists */
+}
 
 export const queries = {
   getUserByUsername: db.prepare('SELECT * FROM users WHERE username = ?'),
@@ -180,8 +187,8 @@ export const queries = {
   getAllMcpServers: db.prepare('SELECT * FROM mcp_servers ORDER BY name'),
   getMcpServerById: db.prepare('SELECT * FROM mcp_servers WHERE id = ?'),
   getEnabledMcpServers: db.prepare('SELECT * FROM mcp_servers WHERE enabled = 1 ORDER BY name'),
-  createMcpServer: db.prepare('INSERT INTO mcp_servers (name, description, transport_type, command, args, url, auth_token, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
-  updateMcpServer: db.prepare('UPDATE mcp_servers SET name = ?, description = ?, transport_type = ?, command = ?, args = ?, url = ?, auth_token = ?, enabled = ? WHERE id = ?'),
+  createMcpServer: db.prepare('INSERT INTO mcp_servers (name, description, transport_type, command, args, url, auth_token, env, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'),
+  updateMcpServer: db.prepare('UPDATE mcp_servers SET name = ?, description = ?, transport_type = ?, command = ?, args = ?, url = ?, auth_token = ?, env = ?, enabled = ? WHERE id = ?'),
   deleteMcpServer: db.prepare('DELETE FROM mcp_servers WHERE id = ?')
 };
 
