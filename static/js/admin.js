@@ -29,6 +29,7 @@ document.querySelectorAll('.admin-tabs button').forEach(btn => {
     if (btn.dataset.tab === 'chat-logs') loadChatLogs();
     if (btn.dataset.tab === 'image-logs') loadImageLogs();
     if (btn.dataset.tab === 'skills') loadSkills();
+    if (btn.dataset.tab === 'mcp') loadMcpServers();
   });
 });
 
@@ -448,6 +449,146 @@ async function deleteSkill(id) {
     return;
   }
   loadSkills();
+}
+
+async function loadMcpServers() {
+  const res = await fetch('/api/admin/mcp/servers');
+  const data = await res.json();
+  const table = document.getElementById('mcpServersTable');
+  table.innerHTML = data.servers.map(s => `
+    <tr>
+      <td>${escapeHtml(s.name)}</td>
+      <td>${escapeHtml(s.transport_type)}</td>
+      <td>${s.enabled ? 'Yes' : 'No'}</td>
+      <td>
+        <button class="btn" onclick="testMcpServer(${s.id})">Test</button>
+        <button class="btn" onclick="editMcpServer(${s.id})">Edit</button>
+        <button class="btn btn-danger" onclick="deleteMcpServer(${s.id})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function showCreateMcpServer() {
+  document.getElementById('mcpServerModalTitle').textContent = 'Add MCP Server';
+  document.getElementById('editMcpServerId').value = '';
+  document.getElementById('mcpServerName').value = '';
+  document.getElementById('mcpServerDescription').value = '';
+  document.getElementById('mcpServerTransport').value = 'stdio';
+  document.getElementById('mcpServerCommand').value = '';
+  document.getElementById('mcpServerArgs').value = '';
+  document.getElementById('mcpServerUrl').value = '';
+  document.getElementById('mcpServerAuthToken').value = '';
+  toggleMcpTransportFields();
+  document.getElementById('mcpServerModal').classList.add('active');
+}
+
+function editMcpServer(id) {
+  fetch('/api/admin/mcp/servers')
+    .then(r => r.json())
+    .then(data => {
+      const server = data.servers.find(s => s.id === id);
+      if (!server) return;
+      document.getElementById('mcpServerModalTitle').textContent = 'Edit MCP Server';
+      document.getElementById('editMcpServerId').value = id;
+      document.getElementById('mcpServerName').value = server.name;
+      document.getElementById('mcpServerDescription').value = server.description || '';
+      document.getElementById('mcpServerTransport').value = server.transport_type || 'stdio';
+      document.getElementById('mcpServerCommand').value = server.command || '';
+      document.getElementById('mcpServerArgs').value = server.args || '';
+      document.getElementById('mcpServerUrl').value = server.url || '';
+      document.getElementById('mcpServerAuthToken').value = server.auth_token || '';
+      toggleMcpTransportFields();
+      document.getElementById('mcpServerModal').classList.add('active');
+    });
+}
+
+function closeMcpServerModal() {
+  document.getElementById('mcpServerModal').classList.remove('active');
+}
+
+function toggleMcpTransportFields() {
+  const transport = document.getElementById('mcpServerTransport').value;
+  document.getElementById('mcpStdioFields').style.display = transport === 'stdio' ? '' : 'none';
+  document.getElementById('mcpSseFields').style.display = transport === 'sse' ? '' : 'none';
+}
+
+async function saveMcpServer() {
+  const id = document.getElementById('editMcpServerId').value;
+  const name = document.getElementById('mcpServerName').value.trim();
+  const description = document.getElementById('mcpServerDescription').value.trim();
+  const transport_type = document.getElementById('mcpServerTransport').value;
+  const command = document.getElementById('mcpServerCommand').value.trim();
+  const args = document.getElementById('mcpServerArgs').value.trim();
+  const url = document.getElementById('mcpServerUrl').value.trim();
+  const auth_token = document.getElementById('mcpServerAuthToken').value.trim();
+
+  if (!name) {
+    alert('Name is required');
+    return;
+  }
+  if (transport_type === 'stdio' && !command) {
+    alert('Command is required for stdio transport');
+    return;
+  }
+  if (transport_type === 'sse' && !url) {
+    alert('URL is required for SSE transport');
+    return;
+  }
+
+  const body = { name, description, transport_type };
+  if (command) body.command = command;
+  if (args) body.args = args;
+  if (url) body.url = url;
+  if (auth_token) body.auth_token = auth_token;
+
+  const endpoint = id ? `/api/admin/mcp/servers/${id}` : '/api/admin/mcp/servers';
+  const method = id ? 'PUT' : 'POST';
+
+  const res = await fetch(endpoint, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const data = await res.json();
+    alert(data.error || 'Failed to save MCP server');
+    return;
+  }
+
+  closeMcpServerModal();
+  loadMcpServers();
+}
+
+async function deleteMcpServer(id) {
+  if (!confirm('Delete this MCP server?')) return;
+  const res = await fetch(`/api/admin/mcp/servers/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    alert('Failed to delete MCP server');
+    return;
+  }
+  loadMcpServers();
+}
+
+async function testMcpServer(id) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Testing...';
+  try {
+    const res = await fetch(`/api/admin/mcp/servers/${id}/test`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      alert(`Connection successful! Found ${data.toolCount} tools:\n${data.tools.map(t => '  - ' + t).join('\n')}`);
+    } else {
+      alert('Connection failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Test failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test';
+  }
 }
 
 function escapeHtml(text) {

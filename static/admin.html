@@ -34,6 +34,7 @@
       <button data-tab="chat-logs">Chat Logs</button>
       <button data-tab="image-logs">Image Logs</button>
       <button data-tab="skills">Skills</button>
+      <button data-tab="mcp">MCP Servers</button>
     </div>
 
     <div id="users" class="admin-section active">
@@ -153,6 +154,25 @@
         </table>
       </div>
     </div>
+
+    <div id="mcp" class="admin-section">
+      <div class="card">
+        <h2>MCP Servers</h2>
+        <p style="color:#888; margin-bottom: 15px;">Configure MCP (Model Context Protocol) servers to give AI access to external tools. Use stdio transport for local child processes or SSE for remote servers.</p>
+        <button class="btn" onclick="showCreateMcpServer()">Add Server</button>
+        <table style="margin-top: 15px;">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Transport</th>
+              <th>Enabled</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="mcpServersTable"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div class="modal" id="userModal">
@@ -209,6 +229,52 @@
       <div style="display: flex; gap: 10px; justify-content: flex-end;">
         <button class="btn" onclick="closeSkillModal()">Cancel</button>
         <button class="btn" onclick="saveSkill()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="mcpServerModal">
+    <div class="modal-content" style="max-width: 560px;">
+      <h2 id="mcpServerModalTitle">Add MCP Server</h2>
+      <input type="hidden" id="editMcpServerId">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="mcpServerName" placeholder="e.g., Home Assistant">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="mcpServerDescription" placeholder="What this server provides">
+      </div>
+      <div class="form-group">
+        <label>Transport Type</label>
+        <select id="mcpServerTransport" onchange="toggleMcpTransportFields()">
+          <option value="stdio">stdio (child process)</option>
+          <option value="sse">SSE (remote server)</option>
+        </select>
+      </div>
+      <div id="mcpStdioFields">
+        <div class="form-group">
+          <label>Command</label>
+          <input type="text" id="mcpServerCommand" placeholder="e.g., npx">
+        </div>
+        <div class="form-group">
+          <label>Arguments</label>
+          <input type="text" id="mcpServerArgs" placeholder='e.g., ["@home-assistant/mcp", "--token", "TOKEN", "--url", "http://..."]'>
+        </div>
+      </div>
+      <div id="mcpSseFields" style="display: none;">
+        <div class="form-group">
+          <label>URL</label>
+          <input type="text" id="mcpServerUrl" placeholder="e.g., http://mcp-server:3001/sse">
+        </div>
+        <div class="form-group">
+          <label>Auth Token</label>
+          <input type="text" id="mcpServerAuthToken" placeholder="Bearer token if required">
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn" onclick="closeMcpServerModal()">Cancel</button>
+        <button class="btn" onclick="saveMcpServer()">Save</button>
       </div>
     </div>
   </div>

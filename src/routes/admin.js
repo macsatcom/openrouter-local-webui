@@ -1,7 +1,8 @@
 import express from 'express';
-import { requireAdmin } from '../auth.js';
+import { requireAdmin, requireAuth } from '../auth.js';
 import { queries, getSetting, getLoggingEnabled, setLoggingEnabled, getOpenRouterApiKey, setOpenRouterApiKey, getUserExposedModels, setUserExposedModels, getOnlineModels, setOnlineModels } from '../db.js';
 import { hashPassword } from '../auth.js';
+import { connectToMcpServers, listToolsFromClients, disconnectMcpClients } from '../mcp-client.js';
 import db from '../db.js';
 
 const router = express.Router();
@@ -243,6 +244,96 @@ router.delete('/skills/:id', requireAdmin, (req, res) => {
   const skillId = parseInt(req.params.id);
   queries.deleteSkill.run(skillId);
   res.json({ success: true });
+});
+
+router.get('/mcp/servers', requireAdmin, (req, res) => {
+  const servers = queries.getAllMcpServers.all();
+  res.json({ servers });
+});
+
+router.post('/mcp/servers', requireAdmin, (req, res) => {
+  const { name, description, transport_type, command, args, url, auth_token } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: 'Name required' });
+  }
+  if (!transport_type || !['stdio', 'sse'].includes(transport_type)) {
+    return res.status(400).json({ error: 'transport_type must be stdio or sse' });
+  }
+  if (transport_type === 'stdio' && !command) {
+    return res.status(400).json({ error: 'Command required for stdio transport' });
+  }
+  if (transport_type === 'sse' && !url) {
+    return res.status(400).json({ error: 'URL required for SSE transport' });
+  }
+  try {
+    const result = queries.createMcpServer.run(
+      name, description || '', transport_type,
+      command || null, args ? (typeof args === 'string' ? args : JSON.stringify(args)) : null,
+      url || null, auth_token || null, 1
+    );
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    if (error.message.includes('UNIQUE')) {
+      return res.status(400).json({ error: 'MCP server name already exists' });
+    }
+    throw error;
+  }
+});
+
+router.put('/mcp/servers/:id', requireAdmin, (req, res) => {
+  const serverId = parseInt(req.params.id);
+  const { name, description, transport_type, command, args, url, auth_token, enabled } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: 'Name required' });
+  }
+  if (!transport_type || !['stdio', 'sse'].includes(transport_type)) {
+    return res.status(400).json({ error: 'transport_type must be stdio or sse' });
+  }
+  queries.updateMcpServer.run(
+    name, description || '', transport_type,
+    command || null, args ? (typeof args === 'string' ? args : JSON.stringify(args)) : null,
+    url || null, auth_token || null, enabled !== undefined ? (enabled ? 1 : 0) : 1,
+    serverId
+  );
+  res.json({ success: true });
+});
+
+router.delete('/mcp/servers/:id', requireAdmin, (req, res) => {
+  const serverId = parseInt(req.params.id);
+  queries.deleteMcpServer.run(serverId);
+  res.json({ success: true });
+});
+
+router.post('/mcp/servers/:id/test', requireAdmin, async (req, res) => {
+  const serverId = parseInt(req.params.id);
+  const server = queries.getMcpServerById.get(serverId);
+  if (!server) {
+    return res.status(404).json({ error: 'MCP server not found' });
+  }
+  try {
+    const clients = await connectToMcpServers([server]);
+    if (clients.length === 0) {
+      return res.json({ success: false, error: 'Failed to connect' });
+    }
+    const result = await listToolsFromClients(clients);
+    await disconnectMcpClients(clients);
+    res.json({
+      success: true,
+      toolCount: result.tools.length,
+      tools: result.tools.map(t => t.function.name)
+    });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
+router.get('/mcp/servers-enabled', requireAuth, (req, res) => {
+  const servers = queries.getEnabledMcpServers.all().map(s => ({
+    id: s.id,
+    name: s.name,
+    description: s.description
+  }));
+  res.json({ servers });
 });
 
 export default router;

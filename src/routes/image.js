@@ -108,6 +108,11 @@ router.post('/generate', requireAuth, async (req, res) => {
     if (output_format && output_format !== 'auto') imageConfig.output_format = output_format;
     if (background && background !== 'auto') imageConfig.background = background;
 
+    const body = {
+      model,
+      messages: [{ role: 'user', content: userContent }]
+    };
+
     if (Object.keys(imageConfig).length > 0) {
       body.image_config = imageConfig;
     }

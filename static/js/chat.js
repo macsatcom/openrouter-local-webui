@@ -2,6 +2,7 @@ const modelSelect = document.getElementById('modelSelect');
 const modelFilterInput = document.getElementById('modelFilter');
 const modelDropdown = document.getElementById('modelDropdown');
 const skillSelect = document.getElementById('skillSelect');
+const mcpCheckboxes = document.getElementById('mcpServerCheckboxes');
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('input');
 const sendBtn = document.getElementById('sendBtn');
@@ -61,6 +62,24 @@ async function loadSkills() {
     const data = await res.json();
     skillSelect.innerHTML = '<option value="">None</option>' + data.skills.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
   } catch {}
+}
+
+async function loadMcpServers() {
+  try {
+    const res = await fetch('/api/admin/mcp/servers-enabled');
+    const data = await res.json();
+    if (!data.servers || data.servers.length === 0) {
+      mcpCheckboxes.style.display = 'none';
+      return;
+    }
+    mcpCheckboxes.style.display = '';
+    mcpCheckboxes.innerHTML = '<span title="Model Context Protocol">MCP:</span> ' +
+      data.servers.map(s =>
+        `<label style="cursor:pointer;margin-left:8px;"><input type="checkbox" class="mcp-cb" value="${s.id}" title="${escapeHtml(s.description || '')}"> ${escapeHtml(s.name)}</label>`
+      ).join('');
+  } catch {
+    mcpCheckboxes.style.display = 'none';
+  }
 }
 
 async function loadConversations() {
@@ -295,6 +314,7 @@ async function sendMessage() {
   sendBtn.innerHTML = '<span class="loading"></span>';
 
   const skillId = skillSelect.value || null;
+  const mcpServerIds = [...mcpCheckboxes.querySelectorAll('.mcp-cb:checked')].map(cb => parseInt(cb.value));
   const previousMessages = [...messagesEl.querySelectorAll('.message')].map(m => {
     const contentEl = m.querySelector('.content');
     const imgEl = contentEl.querySelector('img');
@@ -327,7 +347,8 @@ async function sendMessage() {
         model,
         messages: [...previousMessages, { role: 'user', content: userContent }],
         skill_id: skillId,
-        conversation_id: conversationId
+        conversation_id: conversationId,
+        mcp_server_ids: mcpServerIds
       })
     });
 
@@ -354,6 +375,26 @@ async function sendMessage() {
               if (data.content) {
                 assistantDiv.querySelector('.content').textContent += data.content;
                 messagesEl.scrollTop = messagesEl.scrollHeight;
+              }
+              if (data.tool_call) {
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'tool-status running';
+                statusDiv.setAttribute('data-tool', data.tool_call.name);
+                statusDiv.textContent = '\uD83D\uDD27 ' + data.tool_call.name + '...';
+                assistantDiv.querySelector('.content').appendChild(statusDiv);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              }
+              if (data.tool_result) {
+                const existing = assistantDiv.querySelector(`.tool-status[data-tool="${data.tool_result.name}"]`);
+                if (existing) {
+                  if (data.tool_result.error) {
+                    existing.className = 'tool-status error';
+                    existing.textContent = '\u2717 ' + data.tool_result.name;
+                  } else {
+                    existing.className = 'tool-status done';
+                    existing.textContent = '\u2713 ' + data.tool_result.name;
+                  }
+                }
               }
               if (data.done) {
                 if (data.usage) {
@@ -490,6 +531,7 @@ clearBtn.addEventListener('click', () => {
 checkAuth().then(async () => {
   await loadModels();
   await loadSkills();
+  await loadMcpServers();
   await loadConversations();
 
   const lastId = localStorage.getItem('lastConversationId');

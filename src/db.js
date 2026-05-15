@@ -108,6 +108,19 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS mcp_servers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    transport_type TEXT NOT NULL DEFAULT 'stdio',
+    command TEXT,
+    args TEXT,
+    url TEXT,
+    auth_token TEXT,
+    enabled INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 export const queries = {
@@ -162,7 +175,14 @@ export const queries = {
   deleteConversation: db.prepare('DELETE FROM conversations WHERE id = ? AND user_id = ?'),
 
   getConversationMessages: db.prepare('SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC'),
-  createChatMessage: db.prepare('INSERT INTO chat_messages (conversation_id, role, content, model, cost, tokens) VALUES (?, ?, ?, ?, ?, ?)')
+  createChatMessage: db.prepare('INSERT INTO chat_messages (conversation_id, role, content, model, cost, tokens) VALUES (?, ?, ?, ?, ?, ?)'),
+
+  getAllMcpServers: db.prepare('SELECT * FROM mcp_servers ORDER BY name'),
+  getMcpServerById: db.prepare('SELECT * FROM mcp_servers WHERE id = ?'),
+  getEnabledMcpServers: db.prepare('SELECT * FROM mcp_servers WHERE enabled = 1 ORDER BY name'),
+  createMcpServer: db.prepare('INSERT INTO mcp_servers (name, description, transport_type, command, args, url, auth_token, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
+  updateMcpServer: db.prepare('UPDATE mcp_servers SET name = ?, description = ?, transport_type = ?, command = ?, args = ?, url = ?, auth_token = ?, enabled = ? WHERE id = ?'),
+  deleteMcpServer: db.prepare('DELETE FROM mcp_servers WHERE id = ?')
 };
 
 export function getSetting(key, defaultValue = null) {
