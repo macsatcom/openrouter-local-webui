@@ -78,7 +78,7 @@ router.post('/generate', requireAuth, async (req, res) => {
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }
-  const { model, prompt, aspect_ratio, size } = req.body;
+  const { model, prompt, aspect_ratio, size, quality, output_format, background, input_fidelity, reference_image, edit_mode } = req.body;
   if (!model || !prompt) {
     return res.status(400).json({ error: 'model and prompt required' });
   }
@@ -89,19 +89,30 @@ router.post('/generate', requireAuth, async (req, res) => {
   }
 
   try {
-    const body = {
-      model: model,
-      messages: [{ role: 'user', content: prompt }],
-      modalities: ['image'],
-      max_tokens: 2048
-    };
+    let userContent = prompt;
+    let imageConfig = {};
 
-    if (aspect_ratio) {
-      body.image_config = { aspect_ratio: aspect_ratio };
+    if (reference_image && edit_mode) {
+      userContent = [
+        { type: 'text', text: prompt },
+        {
+          type: 'image_url',
+          image_url: { url: reference_image.startsWith('data:') ? reference_image : `data:image/png;base64,${reference_image}` }
+        }
+      ];
+      imageConfig.input_image_mask = {
+        image_url: reference_image.startsWith('data:') ? reference_image : `data:image/png;base64,${reference_image}`
+      };
+      if (input_fidelity) imageConfig.input_fidelity = input_fidelity;
     }
-    if (size) {
-      body.image_config = body.image_config || {};
-      body.image_config.image_size = size;
+    if (aspect_ratio && aspect_ratio !== 'auto') imageConfig.aspect_ratio = aspect_ratio;
+    if (size && size !== 'auto') imageConfig.image_size = size;
+    if (quality && quality !== 'auto') imageConfig.quality = quality;
+    if (output_format && output_format !== 'auto') imageConfig.output_format = output_format;
+    if (background && background !== 'auto') imageConfig.background = background;
+
+    if (Object.keys(imageConfig).length > 0) {
+      body.image_config = imageConfig;
     }
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -110,7 +121,7 @@ router.post('/generate', requireAuth, async (req, res) => {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Family Chat'
+        'X-Title': 'OpenRouter Local WebUI'
       },
       body: JSON.stringify(body)
     });
@@ -213,10 +224,8 @@ router.post('/generate', requireAuth, async (req, res) => {
       recordSpending(req.user.id, Math.round(cost * 100));
     }
 
-    if (getLoggingEnabled()) {
-      const localPath = imageUrl ? imageUrl.split('/').pop() : null;
-      queries.logImage.run(req.user.id, model, prompt, localPath, cost);
-    }
+    const localPath = imageUrl ? imageUrl.split('/').pop() : null;
+    queries.logImage.run(req.user.id, model, prompt, localPath, cost);
 
     res.json({
       image_url: imageUrl,

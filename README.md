@@ -1,4 +1,4 @@
-# Family Chat
+# OpenRouter Local WebUI
 
 A self-hosted, multi-user AI chat web interface for the [OpenRouter API](https://openrouter.ai/). Chat with hundreds of LLMs, generate images, and manage users — all through a clean, minimal web UI.
 
@@ -6,7 +6,8 @@ A self-hosted, multi-user AI chat web interface for the [OpenRouter API](https:/
 
 - **Multi-user** with role-based access (admin / regular users)
 - **Chat with any LLM** on OpenRouter — streaming responses, conversation history, model search
-- **Image generation** with aspect ratio support + gallery + lightbox
+- **Image generation** with aspect ratio support, quality controls, reference image editing, and gallery
+- **Vision support** — attach images to chat messages for multimodal LLMs
 - **Per-user model restrictions** — admins control which models each user can access
 - **Spending limits** — set daily/monthly caps per user (in cents)
 - **Skills** — admin-defined system prompts that override the AI's persona (homework helper, creative writer, etc.)
@@ -23,8 +24,8 @@ A self-hosted, multi-user AI chat web interface for the [OpenRouter API](https:/
 
 ```bash
 # Clone the repo
-git clone https://github.com/macsatcom/family-chat.git
-cd family-chat
+git clone https://github.com/macsatcom/openrouter-local-webui.git
+cd openrouter-local-webui
 
 # Start the server
 docker compose up -d
@@ -49,8 +50,8 @@ Open **http://localhost:3000** in your browser.
 
 Two Docker volumes store your data:
 
-- `family-chat-data` — SQLite database (users, conversations, logs, settings)
-- `family-chat-images` — Generated image files
+- `openrouter-data` — SQLite database (users, conversations, logs, settings)
+- `openrouter-images` — Generated image files
 
 They persist across container restarts and updates.
 
@@ -58,17 +59,17 @@ They persist across container restarts and updates.
 
 ```bash
 docker run -d \
-  --name family-chat \
+  --name openrouter-webui \
   -p 3000:3000 \
-  -v family-chat-data:/app/data \
-  -v family-chat-images:/app/generated-images \
-  ghcr.io/macsatcom/family-chat:latest
+  -v openrouter-data:/app/data \
+  -v openrouter-images:/app/generated-images \
+  ghcr.io/macsatcom/openrouter-local-webui:latest
 ```
 
 Or use the `docker-compose.yml` from this repo:
 
 ```bash
-curl -O https://raw.githubusercontent.com/macsatcom/family-chat/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/macsatcom/openrouter-local-webui/main/docker-compose.yml
 docker compose up -d
 ```
 

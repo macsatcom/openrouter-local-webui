@@ -1,5 +1,5 @@
 {
-  "name": "family-chat",
+  "name": "openrouter-local-webui",
   "version": "1.0.0",
   "description": "Simple family chat app with OpenRouter integration",
   "main": "src/server.js",

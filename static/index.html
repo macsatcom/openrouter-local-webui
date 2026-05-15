@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Family Chat</title>
+  <title>OpenRouter Local WebUI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
@@ -11,7 +11,7 @@
 </head>
 <body>
   <header class="header">
-    <h1>Family Chat</h1>
+    <h1>OpenRouter Local WebUI</h1>
     <nav>
       <a href="/chat" class="active">Chat</a>
       <a href="/image">Image Gen</a>
@@ -57,8 +57,14 @@
           <div class="chat-input">
             <textarea id="input" placeholder="Type your message..." rows="1"></textarea>
             <div class="chat-controls">
-              <button class="btn" id="sendBtn">Send</button>
+              <input type="file" id="chatImageInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+              <button class="btn btn-ghost" id="attachImageBtn" title="Attach image">+</button>
+              <button class="btn btn-primary" id="sendBtn">Send</button>
             </div>
+          </div>
+          <div class="chat-attach-preview hidden" id="chatAttachPreview">
+            <img id="chatAttachPreviewImg" src="">
+            <button class="ref-image-remove" id="chatAttachRemove">&times;</button>
           </div>
         </div>
       </div>

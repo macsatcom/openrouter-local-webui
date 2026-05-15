@@ -733,6 +733,160 @@ select {
   border-top: 1px solid var(--border);
 }
 
+/* -- Reference Image (Image Gen page) -- */
+
+.ref-image-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ref-image-preview {
+  position: relative;
+  display: inline-flex;
+}
+
+.ref-image-preview img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.ref-image-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: var(--danger);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* -- Edit Toggle -- */
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.toggle-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+/* -- Options Accordion -- */
+
+.options-toggle {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-size: 12px;
+  font-family: var(--font);
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--t);
+}
+
+.options-toggle::before {
+  content: '\25B6';
+  font-size: 8px;
+  transition: transform var(--t);
+}
+
+.options-toggle.open::before {
+  transform: rotate(90deg);
+}
+
+.options-toggle:hover {
+  color: var(--text-2);
+}
+
+.options-panel {
+  margin-bottom: 14px;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+
+@media (max-width: 600px) {
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -- Chat Image Attachment -- */
+
+.chat-attach-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  flex-shrink: 0;
+}
+
+.chat-attach-preview img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+/* -- Chat Inline Image (rendered in messages) -- */
+
+.message .content .chat-inline-image {
+  max-width: 280px;
+  max-height: 280px;
+  margin-top: 8px;
+  display: block;
+}
+
+.message.user .content {
+  white-space: normal;
+}
+
+/* -- Utilities -- */
+
+.hidden {
+  display: none !important;
+}
+
+.text-muted {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.empty-text {
+  color: var(--text-3);
+  font-size: 14px;
+  text-align: center;
+  padding: 40px 0;
+}
+
 /* ============================================================
    Lightbox
    ============================================================ */

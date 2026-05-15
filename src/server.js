@@ -14,11 +14,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'family-chat-secret-change-in-production',
+  secret: process.env.SESSION_SECRET || 'openrouter-local-webui-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -86,5 +86,5 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Family Chat running on http://localhost:${PORT}`);
+  console.log(`OpenRouter Local WebUI running on http://localhost:${PORT}`);
 });

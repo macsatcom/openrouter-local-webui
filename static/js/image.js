@@ -2,15 +2,31 @@ const modelSelect = document.getElementById('modelSelect');
 const modelFilterInput = document.getElementById('modelFilter');
 const modelDropdown = document.getElementById('modelDropdown');
 const promptEl = document.getElementById('prompt');
-const aspectRatioEl = document.getElementById('aspectRatio');
 const generateBtn = document.getElementById('generateBtn');
 const statusEl = document.getElementById('status');
 const imageGridEl = document.getElementById('imageGrid');
 const loadMoreBtn = document.getElementById('loadMoreBtn');
 
+const qualityEl = document.getElementById('quality');
+const sizeEl = document.getElementById('size');
+const aspectRatioEl = document.getElementById('aspectRatio');
+const outputFormatEl = document.getElementById('outputFormat');
+const backgroundEl = document.getElementById('background');
+const inputFidelityEl = document.getElementById('inputFidelity');
+const refImageInput = document.getElementById('refImageInput');
+const refImageBtn = document.getElementById('refImageBtn');
+const refImagePreview = document.getElementById('refImagePreview');
+const refImagePreviewImg = document.getElementById('refImagePreviewImg');
+const refImageRemove = document.getElementById('refImageRemove');
+const editToggle = document.getElementById('editToggle');
+const editOptions = document.getElementById('editOptions');
+const optionsToggle = document.getElementById('optionsToggle');
+const optionsPanel = document.getElementById('optionsPanel');
+
 let offset = 0;
 let loading = false;
 let imageModels = [];
+let refImageBase64 = null;
 
 async function checkAuth() {
   try {
@@ -47,14 +63,26 @@ async function generate() {
   statusEl.innerHTML = '';
 
   try {
+    const body = {
+      model,
+      prompt,
+      aspect_ratio: aspectRatioEl.value,
+      size: sizeEl.value,
+      quality: qualityEl.value,
+      output_format: outputFormatEl.value,
+      background: backgroundEl.value,
+      input_fidelity: inputFidelityEl.value,
+    };
+
+    if (refImageBase64) {
+      body.reference_image = refImageBase64;
+      body.edit_mode = editToggle.checked;
+    }
+
     const res = await fetch('/api/image/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        prompt,
-        aspect_ratio: aspectRatioEl.value
-      })
+      body: JSON.stringify(body)
     });
 
     const data = await res.json();
@@ -91,7 +119,7 @@ async function loadImages(reset = false) {
     const data = await res.json();
 
     if (data.logs.length === 0 && offset === 0) {
-      imageGridEl.innerHTML = '<p style="color:#888">No images generated yet</p>';
+      imageGridEl.innerHTML = '<p class="empty-text">No images generated yet</p>';
       document.getElementById('loadMore').style.display = 'none';
       return;
     }
@@ -162,6 +190,38 @@ function filterDropdown(term) {
     ).join('');
   }
 }
+
+function handleRefImage(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    refImageBase64 = e.target.result;
+    refImagePreviewImg.src = refImageBase64;
+    refImagePreview.classList.remove('hidden');
+    refImageBtn.textContent = 'Change image';
+    editOptions.classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeRefImage() {
+  refImageBase64 = null;
+  refImageInput.value = '';
+  refImagePreview.classList.add('hidden');
+  refImageBtn.textContent = 'Upload image';
+  editToggle.checked = false;
+  editOptions.classList.add('hidden');
+}
+
+refImageBtn.addEventListener('click', () => refImageInput.click());
+refImageInput.addEventListener('change', () => handleRefImage(refImageInput.files[0]));
+refImageRemove.addEventListener('click', removeRefImage);
+
+optionsToggle.addEventListener('click', () => {
+  const isOpen = !optionsPanel.classList.contains('hidden');
+  optionsPanel.classList.toggle('hidden');
+  optionsToggle.classList.toggle('open');
+});
 
 modelFilterInput.addEventListener('input', () => {
   const term = modelFilterInput.value.trim();

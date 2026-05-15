@@ -99,9 +99,13 @@ router.post('/chat', requireAuth, async (req, res) => {
 
   if (!conversationId) {
     const firstUserMessage = messages.find(m => m.role === 'user');
-    const autoTitle = firstUserMessage
-      ? firstUserMessage.content.slice(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
-      : 'New conversation';
+    let autoTitle = 'New conversation';
+    if (firstUserMessage) {
+      const textContent = typeof firstUserMessage.content === 'string'
+        ? firstUserMessage.content
+        : firstUserMessage.content.find(p => p.type === 'text')?.text || 'Image message';
+      autoTitle = textContent.slice(0, 50) + (textContent.length > 50 ? '...' : '');
+    }
     const result = queries.createConversation.run(req.user.id, autoTitle);
     conversationId = result.lastInsertRowid;
     isNewConversation = true;
@@ -127,7 +131,8 @@ router.post('/chat', requireAuth, async (req, res) => {
 
   const lastUserMsg = messages.filter(m => m.role === 'user').pop();
   if (lastUserMsg) {
-    queries.createChatMessage.run(conversationId, 'user', lastUserMsg.content, model, null, null);
+    const content = typeof lastUserMsg.content === 'string' ? lastUserMsg.content : JSON.stringify(lastUserMsg.content);
+    queries.createChatMessage.run(conversationId, 'user', content, model, null, null);
   }
 
   try {
@@ -137,7 +142,7 @@ router.post('/chat', requireAuth, async (req, res) => {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Family Chat'
+        'X-Title': 'OpenRouter Local WebUI'
       },
       body: JSON.stringify({
         model,
@@ -169,15 +174,16 @@ router.post('/chat', requireAuth, async (req, res) => {
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6);
-        if (data === '[DONE]') {
-          if (getLoggingEnabled()) {
-            const lastUserMsg = messages.filter(m => m.role === 'user').pop();
-            if (lastUserMsg) {
-              queries.logChat.run(req.user.id, model, lastUserMsg.content, fullResponse, accumulatedCost, accumulatedTokens);
+          if (data === '[DONE]') {
+            if (getLoggingEnabled()) {
+              const lastUserMsg = messages.filter(m => m.role === 'user').pop();
+              if (lastUserMsg) {
+                const logContent = typeof lastUserMsg.content === 'string' ? lastUserMsg.content : JSON.stringify(lastUserMsg.content);
+                queries.logChat.run(req.user.id, model, logContent, fullResponse, accumulatedCost, accumulatedTokens);
+              }
             }
+            continue;
           }
-          continue;
-        }
         try {
           const chunk = JSON.parse(data);
           const content = chunk.choices?.[0]?.delta?.content;

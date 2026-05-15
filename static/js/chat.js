@@ -9,11 +9,17 @@ const clearBtn = document.getElementById('clearBtn');
 const conversationsListEl = document.getElementById('conversationsList');
 const chatAreaEl = document.getElementById('chatArea');
 const emptyStateEl = document.getElementById('emptyState');
+const attachImageBtn = document.getElementById('attachImageBtn');
+const chatImageInput = document.getElementById('chatImageInput');
+const chatAttachPreview = document.getElementById('chatAttachPreview');
+const chatAttachPreviewImg = document.getElementById('chatAttachPreviewImg');
+const chatAttachRemove = document.getElementById('chatAttachRemove');
 
 let currentUser = null;
 let currentConversationId = null;
 let conversations = [];
 let chatModels = [];
+let attachedImageBase64 = null;
 
 async function checkAuth() {
   try {
@@ -53,11 +59,9 @@ async function loadSkills() {
 async function loadConversations() {
   try {
     const res = await fetch('/api/conversations');
-    console.log('loadConversations status:', res.status);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     conversations = data.conversations || [];
-    console.log('Loaded conversations:', conversations.length);
     renderConversations();
   } catch (e) {
     console.error('Failed to load conversations:', e);
@@ -65,12 +69,7 @@ async function loadConversations() {
 }
 
 function renderConversations() {
-  console.log('renderConversations called, count:', conversations.length);
-  console.log('conversationsListEl:', conversationsListEl);
-  if (!conversationsListEl) {
-    console.error('conversationsListEl is null!');
-    return;
-  }
+  if (!conversationsListEl) return;
   if (conversations.length === 0) {
     conversationsListEl.innerHTML = '<div class="chat-empty" style="padding: 24px; height: auto;">No conversations yet</div>';
     return;
@@ -84,7 +83,6 @@ function renderConversations() {
 }
 
 async function newConversation() {
-  console.log('newConversation called');
   try {
     const res = await fetch('/api/conversations', {
       method: 'POST',
@@ -109,7 +107,6 @@ async function newConversation() {
 async function selectConversation(id) {
   currentConversationId = id;
   localStorage.setItem('lastConversationId', id);
-
   try {
     const res = await fetch(`/api/conversations/${id}`);
     const data = await res.json();
@@ -123,18 +120,41 @@ async function selectConversation(id) {
 }
 
 function renderMessages(msgs) {
-  messagesEl.innerHTML = msgs.map(m => `
-    <div class="message ${m.role}">
-      <div class="role">${m.role === 'user' ? 'You' : 'Assistant'}</div>
-      <div class="content">${escapeHtml(m.content)}</div>
-    </div>
-  `).join('');
+  messagesEl.innerHTML = msgs.map(m => {
+    const roleLabel = m.role === 'user' ? 'You' : 'Assistant';
+    let contentHtml = '';
+    if (m.role === 'user') {
+      try {
+        const parts = typeof m.content === 'string' ? JSON.parse(m.content) : m.content;
+        if (Array.isArray(parts)) {
+          contentHtml = parts.map(p => {
+            if (p.type === 'text') return escapeHtml(p.text);
+            if (p.type === 'image_url') return `<img src="${escapeHtml(p.image_url?.url || '')}" class="chat-inline-image" alt="Attached image">`;
+            return '';
+          }).join(' ');
+        } else {
+          contentHtml = escapeHtml(m.content);
+        }
+      } catch {
+        contentHtml = escapeHtml(m.content);
+      }
+    } else {
+      contentHtml = escapeHtml(m.content);
+    }
+    return `
+      <div class="message ${m.role}">
+        <div class="role">${roleLabel}</div>
+        <div class="content">${contentHtml}</div>
+      </div>
+    `;
+  }).join('');
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function clearMessages() {
   messagesEl.innerHTML = '';
   inputEl.value = '';
+  removeAttachedImage();
 }
 
 function escapeHtml(text) {
@@ -197,9 +217,17 @@ async function deleteConversation(id, event) {
   }
 }
 
+function buildUserContent(text) {
+  if (!attachedImageBase64) return text;
+  return [
+    { type: 'text', text },
+    { type: 'image_url', image_url: { url: attachedImageBase64 } }
+  ];
+}
+
 async function sendMessage() {
   const content = inputEl.value.trim();
-  if (!content) return;
+  if (!content && !attachedImageBase64) return;
 
   const model = modelSelect.value;
   if (!model) {
@@ -210,10 +238,11 @@ async function sendMessage() {
   let conversationId = currentConversationId;
 
   if (!conversationId) {
+    const titleText = content.slice(0, 50) + (content.length > 50 ? '...' : '');
     const result = await fetch('/api/conversations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: content.slice(0, 50) + (content.length > 50 ? '...' : '') })
+      body: JSON.stringify({ title: titleText })
     });
     const data = await result.json();
     conversationId = data.conversation.id;
@@ -235,10 +264,12 @@ async function sendMessage() {
     loadConversations();
   }
 
+  const userContent = buildUserContent(content || '[Image]');
+
   if (!currentConversationId) {
     const userMsg = document.createElement('div');
     userMsg.className = 'message user';
-    userMsg.innerHTML = `<div class="role">You</div><div class="content">${escapeHtml(content)}</div>`;
+    userMsg.innerHTML = `<div class="role">You</div><div class="content">${renderContentParts(userContent)}</div>`;
     messagesEl.appendChild(userMsg);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
@@ -246,20 +277,34 @@ async function sendMessage() {
   if (currentConversationId) {
     const userMsg = document.createElement('div');
     userMsg.className = 'message user';
-    userMsg.innerHTML = `<div class="role">You</div><div class="content">${escapeHtml(content)}</div>`;
+    userMsg.innerHTML = `<div class="role">You</div><div class="content">${renderContentParts(userContent)}</div>`;
     messagesEl.appendChild(userMsg);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
   inputEl.value = '';
+  removeAttachedImage();
   sendBtn.disabled = true;
   sendBtn.innerHTML = '<span class="loading"></span>';
 
   const skillId = skillSelect.value || null;
-  const previousMessages = [...messagesEl.querySelectorAll('.message')].map(m => ({
-    role: m.classList.contains('user') ? 'user' : 'assistant',
-    content: m.querySelector('.content').textContent
-  }));
+  const previousMessages = [...messagesEl.querySelectorAll('.message')].map(m => {
+    const contentEl = m.querySelector('.content');
+    const imgEl = contentEl.querySelector('img');
+    if (m.classList.contains('user') && imgEl) {
+      const textParts = contentEl.childNodes;
+      let text = '';
+      for (const node of textParts) {
+        if (node.nodeType === Node.TEXT_NODE) text += node.textContent;
+      }
+      text = text.trim();
+      const parts = [{ type: 'text', text: text || '[Image]' }];
+      const src = imgEl.getAttribute('src');
+      if (src) parts.push({ type: 'image_url', image_url: { url: src } });
+      return { role: 'user', content: parts };
+    }
+    return { role: m.classList.contains('user') ? 'user' : 'assistant', content: contentEl.textContent };
+  });
 
   const assistantDiv = document.createElement('div');
   assistantDiv.className = 'message assistant';
@@ -273,7 +318,7 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model,
-        messages: [...previousMessages, { role: 'user', content }],
+        messages: [...previousMessages, { role: 'user', content: userContent }],
         skill_id: skillId,
         conversation_id: conversationId
       })
@@ -329,6 +374,32 @@ async function sendMessage() {
   }
 }
 
+function renderContentParts(userContent) {
+  if (typeof userContent === 'string') return escapeHtml(userContent);
+  return userContent.map(p => {
+    if (p.type === 'text') return escapeHtml(p.text);
+    if (p.type === 'image_url') return `<img src="${escapeHtml(p.image_url?.url || '')}" class="chat-inline-image" alt="Attached image">`;
+    return '';
+  }).join(' ');
+}
+
+function handleAttachImage(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    attachedImageBase64 = e.target.result;
+    chatAttachPreviewImg.src = attachedImageBase64;
+    chatAttachPreview.classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeAttachedImage() {
+  attachedImageBase64 = null;
+  chatImageInput.value = '';
+  chatAttachPreview.classList.add('hidden');
+}
+
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
 }
@@ -351,6 +422,10 @@ function filterDropdown(term) {
     ).join('');
   }
 }
+
+attachImageBtn.addEventListener('click', () => chatImageInput.click());
+chatImageInput.addEventListener('change', () => handleAttachImage(chatImageInput.files[0]));
+chatAttachRemove.addEventListener('click', removeAttachedImage);
 
 modelFilterInput.addEventListener('input', () => {
   const term = modelFilterInput.value.trim();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Family Chat - Image Generation</title>
+  <title>OpenRouter Local WebUI - Image Generation</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
@@ -11,7 +11,7 @@
 </head>
 <body class="scrollable">
   <header class="header">
-    <h1>Family Chat</h1>
+    <h1>OpenRouter Local WebUI</h1>
     <nav>
       <a href="/chat">Chat</a>
       <a href="/image" class="active">Image Gen</a>
@@ -25,6 +25,7 @@
   <div class="container">
     <div class="card">
       <h2>Generate Image</h2>
+
       <div class="model-select">
         <div class="model-picker">
           <input type="text" id="modelFilter" class="model-search" placeholder="Search models..." autocomplete="off">
@@ -32,24 +33,96 @@
           <input type="hidden" id="modelSelect" value="">
         </div>
       </div>
+
       <div class="form-group">
-        <label>Prompt</label>
+        <label for="prompt">Prompt</label>
         <textarea id="prompt" rows="3" placeholder="Describe the image you want to generate..."></textarea>
       </div>
-      <div style="display: flex; gap: 10px;">
-        <div class="form-group" style="flex: 1;">
-          <label>Aspect Ratio</label>
-          <select id="aspectRatio">
-            <option value="1:1">1:1 (Square)</option>
-            <option value="16:9">16:9 (Landscape)</option>
-            <option value="9:16">9:16 (Portrait)</option>
-            <option value="4:3">4:3 (Standard)</option>
-            <option value="3:4">3:4 (Portrait)</option>
-            <option value="21:9">21:9 (Ultrawide)</option>
-          </select>
+
+      <div class="form-group" id="refImageGroup">
+        <label>Reference Image</label>
+        <div class="ref-image-area" id="refImageArea">
+          <input type="file" id="refImageInput" accept="image/png,image/jpeg,image/webp" hidden>
+          <button class="btn btn-ghost" id="refImageBtn" type="button">Upload image</button>
+          <span class="text-muted" id="refImageHint">Optional — attach a reference for editing</span>
+          <div class="ref-image-preview hidden" id="refImagePreview">
+            <img id="refImagePreviewImg" src="">
+            <button class="ref-image-remove" id="refImageRemove" type="button">&times;</button>
+          </div>
         </div>
       </div>
-      <button class="btn" id="generateBtn">Generate</button>
+
+      <div id="editOptions" class="hidden" style="margin-bottom: 14px;">
+        <label class="toggle-row">
+          <input type="checkbox" id="editToggle">
+          <span>Edit from reference</span>
+        </label>
+      </div>
+
+      <div class="options-group">
+        <button class="options-toggle" id="optionsToggle" type="button">Options</button>
+        <div class="options-panel hidden" id="optionsPanel">
+          <div class="options-grid">
+            <div class="form-group">
+              <label for="quality">Quality</label>
+              <select id="quality">
+                <option value="auto">Auto</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="size">Size</label>
+              <select id="size">
+                <option value="auto">Auto</option>
+                <option value="1024x1024">1024×1024</option>
+                <option value="1024x1536">1024×1536</option>
+                <option value="1536x1024">1536×1024</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="aspectRatio">Aspect Ratio</label>
+              <select id="aspectRatio">
+                <option value="auto">Auto</option>
+                <option value="1:1">1:1 (Square)</option>
+                <option value="16:9">16:9 (Landscape)</option>
+                <option value="9:16">9:16 (Portrait)</option>
+                <option value="4:3">4:3 (Standard)</option>
+                <option value="3:4">3:4 (Portrait)</option>
+                <option value="21:9">21:9 (Ultrawide)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="outputFormat">Format</label>
+              <select id="outputFormat">
+                <option value="auto">Auto</option>
+                <option value="png">PNG</option>
+                <option value="webp">WebP</option>
+                <option value="jpeg">JPEG</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="background">Background</label>
+              <select id="background">
+                <option value="auto">Auto</option>
+                <option value="transparent">Transparent</option>
+                <option value="opaque">Opaque</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="inputFidelity">Input Fidelity</label>
+              <select id="inputFidelity">
+                <option value="">Auto</option>
+                <option value="high">High</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="generateBtn" style="width:100%">Generate</button>
       <div id="status" style="margin-top: 10px;"></div>
     </div>
 

@@ -1,12 +1,12 @@
 services:
-  family-chat:
-    image: ghcr.io/macsatcom/family-chat:latest
-    container_name: family-chat
+  openrouter-webui:
+    image: ghcr.io/macsatcom/openrouter-local-webui:latest
+    container_name: openrouter-webui
     ports:
       - "3000:3000"
     volumes:
-      - family-chat-data:/app/data
-      - family-chat-images:/app/generated-images
+      - openrouter-data:/app/data
+      - openrouter-images:/app/generated-images
     environment:
       - DB_PATH=/app/data/chat.db
       - IMAGES_DIR=/app/generated-images
@@ -14,5 +14,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  family-chat-data:
-  family-chat-images:
+  openrouter-data:
+  openrouter-images:
