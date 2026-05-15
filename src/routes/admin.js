@@ -86,7 +86,8 @@ router.get('/users', requireAdmin, (req, res) => {
       daily_limit_cents: u.daily_limit_cents ?? -1,
       monthly_limit_cents: u.monthly_limit_cents ?? -1,
       exposed_models: getUserExposedModels(u.id)
-    }))
+    })),
+    admin_models: getUserExposedModels(req.user.id)
   });
 });
 

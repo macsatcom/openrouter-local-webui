@@ -1,5 +1,7 @@
 let allUsers = [];
 let allModels = [];
+let adminModels = [];
+let editingUserId = null;
 let chatLogsOffset = 0;
 let imageLogsOffset = 0;
 
@@ -93,6 +95,7 @@ async function loadUsers() {
   const res = await fetch('/api/admin/users');
   const data = await res.json();
   allUsers = data.users;
+  adminModels = data.admin_models || [];
   const table = document.getElementById('usersTable');
   table.innerHTML = data.users.map(u => {
     const modelCount = u.exposed_models ? u.exposed_models.length : 0;
@@ -123,14 +126,25 @@ async function loadUsers() {
 function showCreateUser() {
   document.getElementById('userModalTitle').textContent = 'Create User';
   document.getElementById('editUserId').value = '';
+  editingUserId = 'new';
   document.getElementById('newUsername').value = '';
+  document.getElementById('newUsername').disabled = false;
   document.getElementById('newPassword').value = '';
   document.getElementById('newPassword').required = true;
   document.getElementById('passwordHint').style.display = 'none';
   document.getElementById('newDailyLimit').value = -1;
   document.getElementById('newMonthlyLimit').value = -1;
+  const filterInput = document.getElementById('userModelFilter');
+  if (filterInput) filterInput.value = '';
   renderModelList([]);
   document.getElementById('userModal').classList.add('active');
+}
+
+function getModelPool() {
+  if (editingUserId === 'new' || typeof editingUserId === 'number') {
+    return allModels.filter(m => adminModels.includes(m.id));
+  }
+  return allModels;
 }
 
 function renderModelList(selectedModels) {
@@ -139,9 +153,14 @@ function renderModelList(selectedModels) {
     listEl.innerHTML = '<p style="color:#888; padding:10px;">No models available. Configure API key first.</p>';
     return;
   }
+  const pool = getModelPool();
+  if (pool.length === 0) {
+    listEl.innerHTML = '<p style="color:#888; padding:10px;">The admin has not selected any models yet. Configure the admin\'s model access first.</p>';
+    return;
+  }
   const filterInput = document.getElementById('userModelFilter');
   const filter = filterInput ? (filterInput.value || '').toLowerCase() : '';
-  const filtered = filter ? allModels.filter(m => (m.display_name || m.name || m.id).toLowerCase().includes(filter)) : allModels;
+  const filtered = filter ? pool.filter(m => (m.display_name || m.name || m.id).toLowerCase().includes(filter)) : pool;
   const header = `<div class="model-list-header"><span></span><span>Model (input/output)</span></div>`;
   const items = filtered.map(m => {
     const checked = selectedModels.includes(m.id) ? 'checked' : '';
@@ -154,6 +173,9 @@ function renderModelList(selectedModels) {
 async function editUser(id) {
   const user = allUsers.find(u => u.id === id);
   if (!user) return;
+  editingUserId = user.is_admin ? null : id;
+  const filterInput = document.getElementById('userModelFilter');
+  if (filterInput) filterInput.value = '';
   document.getElementById('userModalTitle').textContent = 'Edit User: ' + user.username;
   document.getElementById('editUserId').value = id;
   document.getElementById('newUsername').value = user.username;
