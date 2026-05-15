@@ -1,0 +1,18 @@
+services:
+  family-chat:
+    image: ghcr.io/macsatcom/family-chat:latest
+    container_name: family-chat
+    ports:
+      - "3000:3000"
+    volumes:
+      - family-chat-data:/app/data
+      - family-chat-images:/app/generated-images
+    environment:
+      - DB_PATH=/app/data/chat.db
+      - IMAGES_DIR=/app/generated-images
+      - SESSION_SECRET=${SESSION_SECRET:-change-this-in-production}
+    restart: unless-stopped
+
+volumes:
+  family-chat-data:
+  family-chat-images:
