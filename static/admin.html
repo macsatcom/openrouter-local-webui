@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Chat - Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="scrollable">
+  <header class="header">
+    <h1>Family Chat - Admin</h1>
+    <nav>
+      <a href="/chat">Chat</a>
+      <a href="/image">Image Gen</a>
+      <a href="/api/auth/logout" onclick="logout(event)">Logout</a>
+    </nav>
+    <div class="user-info">
+      <span id="username"></span>
+      <span class="badge">Admin</span>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="admin-tabs">
+      <button class="active" data-tab="users">Users</button>
+      <button data-tab="settings">Settings</button>
+      <button data-tab="chat-logs">Chat Logs</button>
+      <button data-tab="image-logs">Image Logs</button>
+      <button data-tab="skills">Skills</button>
+    </div>
+
+    <div id="users" class="admin-section active">
+      <div class="card">
+        <h2>Users</h2>
+        <p style="color:#888; margin-bottom: 15px;">Admin has access to all models. For regular users, assign which models they can use below.</p>
+        <button class="btn" onclick="showCreateUser()">Create User</button>
+        <table style="margin-top: 15px;">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Admin</th>
+              <th>Models</th>
+              <th>Daily Limit</th>
+              <th>Monthly Limit</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="settings" class="admin-section">
+      <div class="card">
+        <h2>OpenRouter Settings</h2>
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="apiKey" placeholder="sk-or-v1-...">
+        </div>
+        <button class="btn" onclick="saveApiKey()">Save API Key</button>
+      </div>
+
+      <div class="card">
+        <h2>Online Models (Web Search)</h2>
+        <p style="color:#888; margin-bottom: 10px;">Select which models should have web search enabled (":online" suffix will be added automatically).</p>
+        <div class="model-list" id="onlineModelList" style="height: 250px;"></div>
+        <button class="btn" style="margin-top: 10px;" onclick="saveOnlineModels()">Save Online Models</button>
+      </div>
+
+      <div class="card">
+        <h2>Logging</h2>
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="loggingEnabled">
+          Enable chat and image logging
+        </label>
+        <button class="btn" style="margin-top: 10px;" onclick="saveLogging()">Save</button>
+      </div>
+    </div>
+
+    <div id="chat-logs" class="admin-section">
+      <div class="card">
+        <h2>Chat Logs</h2>
+        <div style="margin-bottom: 15px;">
+          <select id="chatLogUser" style="width: auto; margin-right: 10px;">
+            <option value="">All Users</option>
+          </select>
+          <button class="btn" onclick="loadChatLogs()">Filter</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Model</th>
+              <th>Prompt</th>
+              <th>Response</th>
+              <th>Cost</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="chatLogsTable"></tbody>
+        </table>
+        <div id="chatLogsPagination" style="margin-top: 15px; text-align: center;"></div>
+      </div>
+    </div>
+
+    <div id="image-logs" class="admin-section">
+      <div class="card">
+        <h2>Image Logs</h2>
+        <div style="margin-bottom: 15px;">
+          <select id="imageLogUser" style="width: auto; margin-right: 10px;">
+            <option value="">All Users</option>
+          </select>
+          <button class="btn" onclick="loadImageLogs()">Filter</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Model</th>
+              <th>Prompt</th>
+              <th>Cost</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="imageLogsTable"></tbody>
+        </table>
+        <div id="imageLogsPagination" style="margin-top: 15px; text-align: center;"></div>
+      </div>
+    </div>
+
+    <div id="skills" class="admin-section">
+      <div class="card">
+        <h2>Skills</h2>
+        <button class="btn" onclick="showCreateSkill()">Create Skill</button>
+        <table style="margin-top: 15px;">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="skillsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="userModal">
+    <div class="modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+      <h2 id="userModalTitle">Create User</h2>
+      <input type="hidden" id="editUserId">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="newUsername">
+      </div>
+      <div class="form-group">
+        <label>Password <span id="passwordHint">(leave empty to keep)</span></label>
+        <input type="password" id="newPassword">
+      </div>
+      <div class="form-group">
+        <label>Daily Limit (cents, -1 = no limit)</label>
+        <input type="number" id="newDailyLimit" value="-1">
+      </div>
+      <div class="form-group">
+        <label>Monthly Limit (cents, -1 = no limit)</label>
+        <input type="number" id="newMonthlyLimit" value="-1">
+      </div>
+      <div class="form-group">
+        <label>Allowed Models</label>
+        <p style="color:#888; font-size: 12px; margin-bottom: 5px;">Select which models this user can access. Leave all unchecked for no access.</p>
+        <div id="userModelList" class="model-list" style="height: 200px;"></div>
+        <button class="btn" style="margin-top: 5px;" onclick="selectAllModels()">Select All</button>
+        <button class="btn" style="margin-top: 5px;" onclick="clearAllModels()">Clear All</button>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn" onclick="closeUserModal()">Cancel</button>
+        <button class="btn" onclick="saveUser()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="skillModal">
+    <div class="modal-content">
+      <h2 id="skillModalTitle">Create Skill</h2>
+      <input type="hidden" id="editSkillId">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="skillName" placeholder="e.g., Creative Writer">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="skillDescription" placeholder="What this skill does">
+      </div>
+      <div class="form-group">
+        <label>System Prompt</label>
+        <textarea id="skillContent" rows="8" placeholder="You are a creative story teller..."></textarea>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn" onclick="closeSkillModal()">Cancel</button>
+        <button class="btn" onclick="saveSkill()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/admin.js"></script>
+  <script>
+    async function logout(e) {
+      e.preventDefault();
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login';
+    }
+    document.getElementById('username').textContent = localStorage.getItem('username') || '';
+  </script>
+</body>
+</html>

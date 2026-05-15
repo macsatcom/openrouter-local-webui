@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <h1>Family Chat</h1>
+    <nav>
+      <a href="/chat" class="active">Chat</a>
+      <a href="/image">Image Gen</a>
+      <a href="/api/auth/logout" onclick="logout(event)">Logout</a>
+    </nav>
+    <div class="user-info">
+      <span id="username"></span>
+    </div>
+  </header>
+
+  <div class="chat-layout">
+    <button class="chat-sidebar-toggle" onclick="toggleSidebar()">☰</button>
+
+    <div class="chat-sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <button class="btn" onclick="newConversation()">+ New Chat</button>
+      </div>
+      <div class="sidebar-conversations" id="conversationsList"></div>
+    </div>
+
+    <div class="chat-main">
+      <div class="chat-container" id="chatContainer">
+        <div class="chat-empty" id="emptyState">Select a conversation or start a new chat</div>
+
+        <div id="chatArea" style="display: none;">
+          <div class="model-select">
+            <div class="model-picker">
+              <input type="text" id="modelFilter" class="model-search" placeholder="Search models..." autocomplete="off">
+              <div class="model-dropdown" id="modelDropdown"></div>
+              <input type="hidden" id="modelSelect" value="">
+            </div>
+            <div class="skill-select">
+              <span>Skill:</span>
+              <select id="skillSelect">
+                <option value="">None</option>
+              </select>
+            </div>
+            <button class="btn" id="clearBtn">Clear</button>
+          </div>
+
+          <div class="chat-messages" id="messages"></div>
+
+          <div class="chat-input">
+            <textarea id="input" placeholder="Type your message..." rows="1"></textarea>
+            <div class="chat-controls">
+              <button class="btn" id="sendBtn">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/chat.js"></script>
+  <script>
+    async function logout(e) {
+      e.preventDefault();
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login';
+    }
+    document.getElementById('username').textContent = localStorage.getItem('username') || '';
+  </script>
+</body>
+</html>

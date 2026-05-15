@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="auth-layout">
+  <div class="auth-container">
+    <div class="auth-card">
+      <h1 class="auth-title">Family Chat</h1>
+      <div id="message"></div>
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" autocomplete="current-password">
+      </div>
+      <div class="auth-actions">
+        <button class="btn btn-primary" id="loginBtn">Sign in</button>
+        <button class="btn btn-ghost" id="registerBtn">Register</button>
+      </div>
+      <p class="auth-hint" id="info"></p>
+    </div>
+  </div>
+  <script>
+    const messageEl = document.getElementById('message');
+    const usernameEl = document.getElementById('username');
+    const passwordEl = document.getElementById('password');
+    const loginBtn = document.getElementById('loginBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    const infoEl = document.getElementById('info');
+
+    async function checkMe() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user.is_admin) {
+            window.location.href = '/admin';
+          } else {
+            window.location.href = '/chat';
+          }
+        }
+      } catch {}
+    }
+    checkMe();
+
+    async function login() {
+      const username = usernameEl.value.trim();
+      const password = passwordEl.value;
+      if (!username || !password) {
+        messageEl.innerHTML = '<div class="error">Please fill in all fields</div>';
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          messageEl.innerHTML = `<div class="error">${data.error}</div>`;
+          return;
+        }
+        if (data.user.is_admin) {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = '/chat';
+        }
+      } catch (e) {
+        messageEl.innerHTML = '<div class="error">Login failed</div>';
+      }
+    }
+
+    async function register() {
+      const username = usernameEl.value.trim();
+      const password = passwordEl.value;
+      if (!username || !password) {
+        messageEl.innerHTML = '<div class="error">Please fill in all fields</div>';
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          messageEl.innerHTML = `<div class="error">${data.error}</div>`;
+          return;
+        }
+        window.location.href = '/admin';
+      } catch (e) {
+        messageEl.innerHTML = '<div class="error">Registration failed</div>';
+      }
+    }
+
+    loginBtn.addEventListener('click', login);
+    registerBtn.addEventListener('click', register);
+    passwordEl.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+    fetch('/api/auth/me').then(r => r.ok).then(loggedIn => {
+      if (loggedIn) {
+        window.location.href = '/chat';
+      } else {
+        infoEl.textContent = 'First user to register becomes admin';
+      }
+    }).catch(() => {
+      infoEl.textContent = 'First user to register becomes admin';
+    });
+  </script>
+</body>
+</html>
