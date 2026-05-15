@@ -8,12 +8,26 @@ const router = express.Router();
 
 async function fetchAllModels(apiKey) {
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/models', {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
-    });
-    if (!response.ok) return [];
-    const data = await response.json();
-    return data.data || [];
+    const [generalRes, imageRes] = await Promise.all([
+      fetch('https://openrouter.ai/api/v1/models', {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      }),
+      fetch('https://openrouter.ai/api/v1/models?output_modalities=image', {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      })
+    ]);
+    const generalData = generalRes.ok ? await generalRes.json() : { data: [] };
+    const imageData = imageRes.ok ? await imageRes.json() : { data: [] };
+    const modelMap = new Map();
+    for (const m of (generalData.data || [])) {
+      modelMap.set(m.id, m);
+    }
+    for (const m of (imageData.data || [])) {
+      if (!modelMap.has(m.id)) {
+        modelMap.set(m.id, m);
+      }
+    }
+    return Array.from(modelMap.values());
   } catch {
     return [];
   }
