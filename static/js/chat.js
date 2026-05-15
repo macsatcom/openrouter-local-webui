@@ -22,12 +22,19 @@ let chatModels = [];
 let attachedImageBase64 = null;
 
 async function checkAuth() {
+  if (localStorage.getItem('is_admin')) {
+    document.getElementById('adminLink').classList.remove('hidden');
+  }
   try {
     const res = await fetch('/api/auth/me');
     if (!res.ok) throw new Error();
     const data = await res.json();
     currentUser = data.user;
     localStorage.setItem('username', currentUser.username);
+    localStorage.setItem('is_admin', currentUser.is_admin ? '1' : '');
+    if (currentUser.is_admin) {
+      document.getElementById('adminLink').classList.remove('hidden');
+    }
   } catch {
     window.location.href = '/login';
   }

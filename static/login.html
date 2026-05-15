@@ -42,11 +42,8 @@
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
-          if (data.user.is_admin) {
-            window.location.href = '/admin';
-          } else {
-            window.location.href = '/chat';
-          }
+          localStorage.setItem('is_admin', data.user.is_admin ? '1' : '');
+          window.location.href = '/chat';
         }
       } catch {}
     }
@@ -70,11 +67,8 @@
           messageEl.innerHTML = `<div class="error">${data.error}</div>`;
           return;
         }
-        if (data.user.is_admin) {
-          window.location.href = '/admin';
-        } else {
-          window.location.href = '/chat';
-        }
+        localStorage.setItem('is_admin', data.user.is_admin ? '1' : '');
+        window.location.href = '/chat';
       } catch (e) {
         messageEl.innerHTML = '<div class="error">Login failed</div>';
       }
@@ -98,6 +92,7 @@
           messageEl.innerHTML = `<div class="error">${data.error}</div>`;
           return;
         }
+        localStorage.setItem('is_admin', data.user.is_admin ? '1' : '');
         window.location.href = '/admin';
       } catch (e) {
         messageEl.innerHTML = '<div class="error">Registration failed</div>';

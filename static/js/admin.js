@@ -68,8 +68,10 @@ function renderOnlineModelList(onlineModels) {
     listEl.innerHTML = '<p style="color:#888; padding:10px;">No models available. Configure API key first.</p>';
     return;
   }
+  const filter = (document.getElementById('onlineModelFilter')?.value || '').toLowerCase();
+  const filtered = filter ? allModels.filter(m => (m.display_name || m.name || m.id).toLowerCase().includes(filter)) : allModels;
   const header = `<div class="model-list-header"><span></span><span>Model (input/output)</span></div>`;
-  const items = allModels.map(m => {
+  const items = filtered.map(m => {
     const checked = onlineModels.includes(m.id) ? 'checked' : '';
     const displayName = escapeHtml(m.display_name || m.name || m.id);
     return `<div class="model-item"><input type="checkbox" value="${m.id}" ${checked}><span>${displayName}</span></div>`;
@@ -137,8 +139,11 @@ function renderModelList(selectedModels) {
     listEl.innerHTML = '<p style="color:#888; padding:10px;">No models available. Configure API key first.</p>';
     return;
   }
+  const filterInput = document.getElementById('userModelFilter');
+  const filter = filterInput ? (filterInput.value || '').toLowerCase() : '';
+  const filtered = filter ? allModels.filter(m => (m.display_name || m.name || m.id).toLowerCase().includes(filter)) : allModels;
   const header = `<div class="model-list-header"><span></span><span>Model (input/output)</span></div>`;
-  const items = allModels.map(m => {
+  const items = filtered.map(m => {
     const checked = selectedModels.includes(m.id) ? 'checked' : '';
     const displayName = escapeHtml(m.display_name || m.name || m.id);
     return `<div class="model-item"><input type="checkbox" value="${m.id}" ${checked}><span>${displayName}</span></div>`;

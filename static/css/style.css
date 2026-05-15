@@ -364,6 +364,21 @@ select {
   text-transform: uppercase;
 }
 
+.admin-link {
+  font-size: 12px;
+  color: var(--accent) !important;
+  font-weight: 500;
+  padding: 3px 10px;
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius);
+  transition: background var(--t);
+  text-decoration: none;
+}
+
+.admin-link:hover {
+  background: var(--accent-dim);
+}
+
 /* ============================================================
    Chat Layout
    ============================================================ */
