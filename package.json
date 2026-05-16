@@ -1,6 +1,6 @@
 {
   "name": "openrouter-local-webui",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Simple family chat app with OpenRouter integration",
   "main": "src/server.js",
   "type": "module",

@@ -406,8 +406,9 @@ router.get('/mcp/marketplace', requireAdmin, async (req, res) => {
     categories,
     entries: filtered.slice(0, 200).map(e => ({
       name: e.name,
+      url: e.URL || '',
       summary: e.Summary || '',
-      description: (e.Description || '').slice(0, 300),
+      description: (e.Description || '').slice(0, 500),
       category: e.Category || '',
       mode: e.Mode || '',
       pricing: e.Pricing || '',

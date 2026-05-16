@@ -646,8 +646,9 @@ async function searchMarketplace() {
     table.innerHTML = data.entries.map(e => `
       <tr>
         <td>
-          <strong>${escapeHtml(e.name)}</strong>
+          ${e.url ? `<a href="${escapeHtml(e.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;"><strong>${escapeHtml(e.name)}</strong></a>` : `<strong>${escapeHtml(e.name)}</strong>`}
           ${e.summary ? `<br><small style="color:#888;">${escapeHtml(e.summary)}</small>` : ''}
+          ${e.description ? `<br><small style="color:#aaa;">${escapeHtml(e.description)}</small>` : ''}
           ${e.securityScore ? `<br><small>Security: ${escapeHtml(e.securityScore)}</small>` : ''}
         </td>
         <td>${escapeHtml(e.category || '')}</td>
