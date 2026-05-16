@@ -115,7 +115,7 @@ function parseMarketplaceEntries(text) {
         entry.name = line.slice(3).trim();
         continue;
       }
-      const kvMatch = line.match(/^([A-Za-z ]+?):\s*(.*)/);
+      const kvMatch = line.match(/^([A-Za-z0-9 ()]+?):\s*(.*)/);
       if (kvMatch) {
         currentKey = kvMatch[1].trim();
         entry[currentKey] = kvMatch[2].trim();
