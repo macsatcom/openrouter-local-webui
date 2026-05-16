@@ -512,7 +512,7 @@ function closeMcpServerModal() {
 function toggleMcpTransportFields() {
   const transport = document.getElementById('mcpServerTransport').value;
   document.getElementById('mcpStdioFields').style.display = transport === 'stdio' ? '' : 'none';
-  document.getElementById('mcpSseFields').style.display = transport === 'sse' ? '' : 'none';
+  document.getElementById('mcpRemoteFields').style.display = (transport === 'sse' || transport === 'streamable-http') ? '' : 'none';
 }
 
 async function saveMcpServer() {
@@ -603,6 +603,114 @@ async function testMcpServer(id) {
   }
 }
 
+let mpCache = null;
+
+async function searchMarketplace() {
+  const search = document.getElementById('mpSearch').value.trim();
+  const category = document.getElementById('mpCategory').value;
+  const mode = document.getElementById('mpMode').value;
+  const hideIncompatible = document.getElementById('mpHideIncompatible').checked ? '1' : '0';
+
+  const status = document.getElementById('mpStatus');
+  const table = document.getElementById('mpTable');
+  status.textContent = 'Searching...';
+  table.innerHTML = '';
+
+  try {
+    if (!mpCache) {
+      status.textContent = 'Loading marketplace catalog...';
+    }
+    const params = new URLSearchParams({ hide_incompatible: hideIncompatible });
+    if (search) params.set('search', search);
+    if (category) params.set('category', category);
+    if (mode) params.set('mode', mode);
+
+    const res = await fetch(`/api/admin/mcp/marketplace?${params}`);
+    const data = await res.json();
+
+    if (data.error) {
+      status.textContent = `Error: ${data.error}`;
+      return;
+    }
+
+    status.textContent = `Showing ${data.shown} of ${data.total} servers`;
+
+    if (!mpCache) {
+      const catSelect = document.getElementById('mpCategory');
+      const currentCat = catSelect.value;
+      catSelect.innerHTML = '<option value="">All Categories</option>' + data.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+      catSelect.value = currentCat;
+      mpCache = true;
+    }
+
+    table.innerHTML = data.entries.map(e => `
+      <tr>
+        <td>
+          <strong>${escapeHtml(e.name)}</strong>
+          ${e.summary ? `<br><small style="color:#888;">${escapeHtml(e.summary)}</small>` : ''}
+          ${e.securityScore ? `<br><small>Security: ${escapeHtml(e.securityScore)}</small>` : ''}
+        </td>
+        <td>${escapeHtml(e.category || '')}</td>
+        <td>${escapeHtml(e.mode || '')}</td>
+        <td>
+          ${e.parsed ? `<button class="btn" onclick="installFromMarketplace('${escapeHtml(e.name)}')">Install</button>` : e.install ? '<small style="color:#888;">No parser</small>' : '<small style="color:#888;">No install cmd</small>'}
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    status.textContent = `Error: ${e.message}`;
+  }
+}
+
+async function refreshMarketplace() {
+  mpCache = null;
+  document.getElementById('mpStatus').textContent = 'Refreshing...';
+  document.getElementById('mpTable').innerHTML = '';
+  try {
+    const res = await fetch('/api/admin/mcp/marketplace?refresh=1');
+    await res.json();
+    searchMarketplace();
+  } catch (e) {
+    document.getElementById('mpStatus').textContent = `Refresh failed: ${e.message}`;
+  }
+}
+
+function installFromMarketplace(name) {
+  fetch('/api/admin/mcp/marketplace?search=' + encodeURIComponent(name) + '&hide_incompatible=0')
+    .then(r => r.json())
+    .then(data => {
+      const entry = data.entries.find(e => e.name === name);
+      if (!entry || !entry.parsed) {
+        alert('Could not find install info for this server');
+        return;
+      }
+      const p = entry.parsed;
+      document.getElementById('mcpServerModalTitle').textContent = 'Install MCP Server';
+      document.getElementById('editMcpServerId').value = '';
+      document.getElementById('mcpServerName').value = entry.name;
+      document.getElementById('mcpServerDescription').value = entry.summary || entry.description || '';
+      document.getElementById('mcpServerTransport').value = p.transport_type || 'stdio';
+      document.getElementById('mcpServerCommand').value = p.command || '';
+      document.getElementById('mcpServerArgs').value = p.args ? JSON.stringify(p.args) : '';
+      document.getElementById('mcpServerUrl').value = p.url || entry.remoteUrl || '';
+      document.getElementById('mcpServerAuthToken').value = '';
+
+      if (entry.requiredCredentials) {
+        document.getElementById('mcpServerEnv').value = JSON.stringify(
+          Object.fromEntries(entry.requiredCredentials.split(',').map(s => {
+            const parts = s.trim().split(/\s+/);
+            return [parts[0], 'YOUR_' + parts[0]];
+          }))
+        );
+      } else {
+        document.getElementById('mcpServerEnv').value = '';
+      }
+
+      toggleMcpTransportFields();
+      document.getElementById('mcpServerModal').classList.add('active');
+    });
+}
+
 function escapeHtml(text) {
   if (!text) return '';
   const div = document.createElement('div');
@@ -614,4 +722,18 @@ checkAdmin().then(async () => {
   await loadAllModels();
   loadSettings();
   loadUsers();
+  setupTabListeners();
 });
+
+function setupTabListeners() {
+  document.querySelectorAll('.admin-tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tab === 'marketplace') {
+        searchMarketplace();
+      }
+    });
+  });
+  if (window.location.hash === '#marketplace') {
+    document.querySelector('.admin-tabs button[data-tab="marketplace"]')?.click();
+  }
+}

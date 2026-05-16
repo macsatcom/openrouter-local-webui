@@ -75,7 +75,7 @@ router.post('/chat', requireAuth, async (req, res) => {
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }
-  const { model, messages, max_tokens, skill_id, conversation_id, mcp_server_ids } = req.body;
+  const { model, messages, max_tokens, skill_ids, conversation_id, mcp_server_ids } = req.body;
   if (!model || !messages || !messages.length) {
     return res.status(400).json({ error: 'model and messages required' });
   }
@@ -110,10 +110,12 @@ router.post('/chat', requireAuth, async (req, res) => {
   }
 
   const systemMessages = [];
-  if (skill_id) {
-    const skill = queries.getSkillById.get(skill_id);
-    if (skill) {
-      systemMessages.push({ role: 'system', content: skill.content });
+  if (skill_ids && skill_ids.length > 0) {
+    for (const sid of skill_ids) {
+      const skill = queries.getSkillById.get(sid);
+      if (skill) {
+        systemMessages.push({ role: 'system', content: skill.content });
+      }
     }
   }
 

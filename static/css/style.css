@@ -1257,3 +1257,61 @@ tr:hover td {
   font-size: 12px;
   white-space: nowrap;
 }
+
+/* Multi-select dropdown widget */
+.multi-select {
+  position: relative;
+  display: inline-flex;
+  flex: 1;
+  min-width: 120px;
+}
+.multi-select-trigger {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 13px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.multi-select-trigger:hover {
+  border-color: var(--border-hover);
+}
+.multi-select-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.multi-select-dropdown.open {
+  display: block;
+}
+.multi-select-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.multi-select-item:hover {
+  background: var(--surface-1);
+}
+.multi-select-item input[type="checkbox"] {
+  margin: 0;
+}

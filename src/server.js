@@ -9,6 +9,7 @@ import imageRoutes from './routes/image.js';
 import adminRoutes from './routes/admin.js';
 import { optionalAuth } from './auth.js';
 import db from './db.js';
+import { warmMcpCaches } from './mcp-client.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -87,4 +88,13 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   console.log(`OpenRouter Local WebUI running on http://localhost:${PORT}`);
+
+  try {
+    const enabledServers = db.prepare('SELECT * FROM mcp_servers WHERE enabled = 1').all();
+    if (enabledServers.length > 0) {
+      warmMcpCaches(enabledServers);
+    }
+  } catch (e) {
+    // DB might not exist yet on first run
+  }
 });

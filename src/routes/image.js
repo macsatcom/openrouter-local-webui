@@ -15,6 +15,15 @@ if (!fs.existsSync(IMAGES_DIR)) {
 
 const router = express.Router();
 
+function getExtFromMime(mimeType) {
+  const subtype = mimeType.split('/')[1];
+  if (!subtype) return 'png';
+  const cleaned = subtype.replace(/\+.*$/, '');
+  if (cleaned === 'jpeg') return 'jpg';
+  if (!cleaned) return 'png';
+  return cleaned;
+}
+
 async function fetchImageModels(apiKey) {
   try {
     const response = await fetch('https://openrouter.ai/api/v1/models?output_modalities=image', {
@@ -166,7 +175,7 @@ router.post('/generate', requireAuth, async (req, res) => {
     }
 
     if (!imageUrl && typeof content === 'string') {
-      const urlMatch = content.match(/https?:\/\/[^\s\)\]]+\.(?:png|jpg|jpeg|gif|webp)/i);
+      const urlMatch = content.match(/https?:\/\/[^\s\)\]]+\.(?:png|jpg|jpeg|gif|webp|svg)/i);
       if (urlMatch) {
         imageUrl = urlMatch[0];
         console.log('Found image URL in text content:', imageUrl);
@@ -176,13 +185,22 @@ router.post('/generate', requireAuth, async (req, res) => {
       if (base64Match && !imageUrl) {
         const base64Data = base64Match[0];
         const mimeType = base64Data.split(';')[0].split(':')[1];
-        const ext = mimeType.split('/')[1] === 'jpeg' ? 'jpg' : mimeType.split('/')[1];
+        const ext = getExtFromMime(mimeType);
         const filename = `${uuidv4()}.${ext}`;
         const filepath = path.join(IMAGES_DIR, filename);
         const base64Content = base64Data.split(',')[1];
         fs.writeFileSync(filepath, Buffer.from(base64Content, 'base64'));
         imageUrl = `/api/image/download/${filename}`;
         console.log('Found base64 image, saved to:', filename);
+      }
+
+      if (!imageUrl && /^\s*<svg\b/i.test(content)) {
+        const ext = 'svg';
+        const filename = `${uuidv4()}.${ext}`;
+        const filepath = path.join(IMAGES_DIR, filename);
+        fs.writeFileSync(filepath, content, 'utf-8');
+        imageUrl = `/api/image/download/${filename}`;
+        console.log('Found raw SVG content, saved to:', filename);
       }
     }
 
@@ -192,15 +210,32 @@ router.post('/generate', requireAuth, async (req, res) => {
     }
 
     if (imageUrl.startsWith('data:image/')) {
-      const match = imageUrl.match(/data:image\/([^;]+);base64,(.+)/);
-      if (match) {
-        const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+      const base64Match = imageUrl.match(/data:image\/([^;]+);base64,(.+)/);
+      const plainMatch = imageUrl.match(/data:image\/([^;]+),(.+)/);
+      if (base64Match) {
+        const ext = getExtFromMime(`image/${base64Match[1]}`);
         const filename = `${uuidv4()}.${ext}`;
         const filepath = path.join(IMAGES_DIR, filename);
-        fs.writeFileSync(filepath, Buffer.from(match[2], 'base64'));
+        fs.writeFileSync(filepath, Buffer.from(base64Match[2], 'base64'));
         imageUrl = `/api/image/download/${filename}`;
         console.log('Saved base64 from message.images to:', filename);
+      } else if (plainMatch && !plainMatch[1].includes('base64')) {
+        const ext = getExtFromMime(`image/${plainMatch[1]}`);
+        const filename = `${uuidv4()}.${ext}`;
+        const filepath = path.join(IMAGES_DIR, filename);
+        const decoded = decodeURIComponent(plainMatch[2]);
+        fs.writeFileSync(filepath, decoded, 'utf-8');
+        imageUrl = `/api/image/download/${filename}`;
+        console.log('Saved plain data URI to:', filename);
       }
+    }
+
+    if (!imageUrl.startsWith('/api/image/download/') && /^\s*<svg\b/i.test(imageUrl)) {
+      const filename = `${uuidv4()}.svg`;
+      const filepath = path.join(IMAGES_DIR, filename);
+      fs.writeFileSync(filepath, imageUrl, 'utf-8');
+      imageUrl = `/api/image/download/${filename}`;
+      console.log('Saved raw SVG from imageUrl to:', filename);
     }
 
     if (imageUrl && imageUrl.startsWith('http')) {
@@ -209,7 +244,7 @@ router.post('/generate', requireAuth, async (req, res) => {
         if (imageResponse.ok) {
           const contentType = imageResponse.headers.get('content-type') || '';
           const isImage = contentType.startsWith('image/');
-          const ext = isImage ? (contentType.split('/')[1] || 'png') : (imageUrl.split('.').pop().split('?')[0] || 'png');
+          const ext = isImage ? getExtFromMime(contentType) : (imageUrl.split('.').pop().split('?')[0] || 'png');
           const filename = `${uuidv4()}.${ext}`;
           const filepath = path.join(IMAGES_DIR, filename);
           const buffer = await imageResponse.arrayBuffer();

@@ -13,9 +13,14 @@ if (typeof marked !== 'undefined') {
 const modelSelect = document.getElementById('modelSelect');
 const modelFilterInput = document.getElementById('modelFilter');
 const modelDropdown = document.getElementById('modelDropdown');
-const skillSelect = document.getElementById('skillSelect');
+const skillSelectWrap = document.getElementById('skillSelectWrap');
+const skillMultiSelect = document.getElementById('skillMultiSelect');
+const skillTrigger = document.getElementById('skillTrigger');
+const skillDropdown = document.getElementById('skillDropdown');
 const mcpBar = document.getElementById('mcpBar');
-const mcpCheckboxes = document.getElementById('mcpServerCheckboxes');
+const mcpMultiSelect = document.getElementById('mcpMultiSelect');
+const mcpTrigger = document.getElementById('mcpTrigger');
+const mcpDropdown = document.getElementById('mcpDropdown');
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('input');
 const sendBtn = document.getElementById('sendBtn');
@@ -34,6 +39,84 @@ let currentConversationId = null;
 let conversations = [];
 let chatModels = [];
 let attachedImageBase64 = null;
+let skillOptions = [];
+let mcpOptions = [];
+let selectedSkills = new Set();
+let selectedMcps = new Set();
+let activeMultiSelect = null;
+
+function toggleMultiSelect(type) {
+  const dropdown = type === 'skill' ? skillDropdown : mcpDropdown;
+  const isOpen = !dropdown.classList.contains('open');
+  closeAllMultiSelects();
+  if (isOpen) {
+    dropdown.classList.add('open');
+    activeMultiSelect = type;
+  }
+}
+
+function closeAllMultiSelects() {
+  skillDropdown.classList.remove('open');
+  mcpDropdown.classList.remove('open');
+  activeMultiSelect = null;
+}
+
+function updateMultiSelectTrigger(type) {
+  const trigger = type === 'skill' ? skillTrigger : mcpTrigger;
+  const selected = type === 'skill' ? selectedSkills : selectedMcps;
+  const options = type === 'skill' ? skillOptions : mcpOptions;
+  if (selected.size === 0) {
+    trigger.textContent = 'None';
+  } else if (selected.size === options.length && options.length > 0) {
+    trigger.textContent = `All (${selected.size})`;
+  } else {
+    const names = [...selected].map(id => {
+      const opt = options.find(o => o.id === id);
+      return opt ? opt.name : id;
+    });
+    trigger.textContent = names.join(', ') || 'None';
+  }
+}
+
+function renderMultiSelectOptions(type) {
+  const dropdown = type === 'skill' ? skillDropdown : mcpDropdown;
+  const selected = type === 'skill' ? selectedSkills : selectedMcps;
+  const options = type === 'skill' ? skillOptions : mcpOptions;
+  if (options.length === 0) {
+    dropdown.innerHTML = '<div class="model-dropdown-empty">No options</div>';
+    return;
+  }
+  dropdown.innerHTML = options.map(o => `
+    <label class="multi-select-item" onclick="event.stopPropagation()">
+      <input type="checkbox" value="${o.id}" ${selected.has(o.id) ? 'checked' : ''} onchange="toggleMultiOption('${type}', ${o.id}, this.checked)">
+      ${escapeHtml(o.name)}
+    </label>
+  `).join('');
+}
+
+function toggleMultiOption(type, id, checked) {
+  const selected = type === 'skill' ? selectedSkills : selectedMcps;
+  if (checked) {
+    selected.add(id);
+  } else {
+    selected.delete(id);
+  }
+  updateMultiSelectTrigger(type);
+}
+
+document.addEventListener('click', (e) => {
+  const skillEl = skillMultiSelect;
+  const mcpEl = mcpMultiSelect;
+  if (activeMultiSelect === 'skill' && !skillEl.contains(e.target)) {
+    closeAllMultiSelects();
+  }
+  if (activeMultiSelect === 'mcp' && !mcpEl.contains(e.target)) {
+    closeAllMultiSelects();
+  }
+  if (!e.target.closest('.model-picker')) {
+    modelDropdown.classList.remove('open');
+  }
+});
 
 async function checkAuth() {
   if (localStorage.getItem('is_admin')) {
@@ -67,13 +150,20 @@ async function loadModels() {
 
 async function loadSkills() {
   if (!currentUser?.is_admin) {
-    skillSelect.parentElement.style.display = 'none';
+    skillSelectWrap.style.display = 'none';
     return;
   }
   try {
     const res = await fetch('/api/admin/skills');
     const data = await res.json();
-    skillSelect.innerHTML = '<option value="">None</option>' + data.skills.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    skillOptions = data.skills.map(s => ({ id: s.id, name: s.name }));
+    if (skillOptions.length === 0) {
+      skillSelectWrap.style.display = 'none';
+    } else {
+      skillSelectWrap.style.display = '';
+      renderMultiSelectOptions('skill');
+      updateMultiSelectTrigger('skill');
+    }
   } catch {}
 }
 
@@ -85,10 +175,9 @@ async function loadMcpServers() {
       mcpBar.style.display = 'none';
     } else {
       mcpBar.style.display = '';
-      mcpCheckboxes.innerHTML = '<span title="Model Context Protocol">MCP:</span> ' +
-        data.servers.map(s =>
-          `<label style="cursor:pointer;margin-left:8px;"><input type="checkbox" class="mcp-cb" value="${s.id}" title="${escapeHtml(s.description || '')}"> ${escapeHtml(s.name)}</label>`
-        ).join('');
+      mcpOptions = data.servers.map(s => ({ id: s.id, name: s.name }));
+      renderMultiSelectOptions('mcp');
+      updateMultiSelectTrigger('mcp');
     }
   } catch {
     mcpBar.style.display = 'none';
@@ -327,8 +416,8 @@ async function sendMessage() {
   sendBtn.disabled = true;
   sendBtn.innerHTML = '<span class="loading"></span>';
 
-  const skillId = skillSelect.value || null;
-  const mcpServerIds = [...mcpCheckboxes.querySelectorAll('.mcp-cb:checked')].map(cb => parseInt(cb.value));
+  const skillIds = [...selectedSkills];
+  const mcpServerIds = [...selectedMcps];
   const previousMessages = [...messagesEl.querySelectorAll('.message')].map(m => {
     const contentEl = m.querySelector('.content');
     const imgEl = contentEl.querySelector('img');
@@ -364,7 +453,7 @@ async function sendMessage() {
       body: JSON.stringify({
         model,
         messages: [...previousMessages, { role: 'user', content: userContent }],
-        skill_id: skillId,
+        skill_ids: skillIds,
         conversation_id: conversationId,
         mcp_server_ids: mcpServerIds
       })
@@ -518,12 +607,6 @@ modelDropdown.addEventListener('click', (e) => {
   if (item) {
     modelSelect.value = item.dataset.value;
     modelFilterInput.value = item.textContent;
-    modelDropdown.classList.remove('open');
-  }
-});
-
-document.addEventListener('click', (e) => {
-  if (!modelFilterInput.parentElement.contains(e.target)) {
     modelDropdown.classList.remove('open');
   }
 });

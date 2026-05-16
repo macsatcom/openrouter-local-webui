@@ -1,6 +1,8 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { spawn } from 'child_process';
 
 function sanitizePrefix(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -29,6 +31,28 @@ function parseEnv(envJson) {
   return undefined;
 }
 
+function createTransport(server) {
+  if (server.transport_type === 'sse') {
+    const opts = {};
+    if (server.auth_token) {
+      opts.requestInit = { headers: { Authorization: `Bearer ${server.auth_token}` } };
+    }
+    return new SSEClientTransport(new URL(server.url), opts);
+  }
+  if (server.transport_type === 'streamable-http') {
+    const opts = {};
+    if (server.auth_token) {
+      opts.requestInit = { headers: { Authorization: `Bearer ${server.auth_token}` } };
+    }
+    return new StreamableHTTPClientTransport(new URL(server.url), opts);
+  }
+  return new StdioClientTransport({
+    command: server.command,
+    args: parseArgs(server.args),
+    env: parseEnv(server.env)
+  });
+}
+
 export async function connectToMcpServers(serverConfigs) {
   const clients = [];
 
@@ -40,17 +64,7 @@ export async function connectToMcpServers(serverConfigs) {
         version: '1.0.0'
       });
 
-      let transport;
-      if (server.transport_type === 'sse') {
-        transport = new SSEClientTransport(new URL(server.url));
-      } else {
-        transport = new StdioClientTransport({
-          command: server.command,
-          args: parseArgs(server.args),
-          env: parseEnv(server.env)
-        });
-      }
-
+      const transport = createTransport(server);
       await client.connect(transport);
       clients.push({ client, transport, prefix, name: server.name });
     } catch (err) {
@@ -110,6 +124,45 @@ export async function callMcpTool(toolMap, prefixedName, args) {
   } catch (err) {
     return { error: err.message };
   }
+}
+
+export async function warmMcpCaches(serverConfigs) {
+  console.log(`MCP: Warming caches for ${serverConfigs.length} enabled server(s)...`);
+  const promises = serverConfigs.map(server => {
+    return new Promise(resolve => {
+      if (server.transport_type === 'sse' || server.transport_type === 'streamable-http') {
+        console.log(`MCP: Skipping warm for remote server "${server.name}"`);
+        resolve();
+        return;
+      }
+      const args = parseArgs(server.args);
+      const cmdArgs = [...args, '--version'];
+      const child = spawn(server.command, cmdArgs, {
+        env: { ...process.env, ...(parseEnv(server.env) || {}) },
+        stdio: 'ignore'
+      });
+      const timer = setTimeout(() => {
+        child.kill();
+        resolve();
+      }, 30000);
+      child.on('close', code => {
+        clearTimeout(timer);
+        if (code === 0) {
+          console.log(`MCP: Warmed "${server.name}" (${server.command} ${args.join(' ')})`);
+        } else {
+          console.warn(`MCP: Warm for "${server.name}" exited with code ${code} (may be harmless)`);
+        }
+        resolve();
+      });
+      child.on('error', err => {
+        clearTimeout(timer);
+        console.warn(`MCP: Warm for "${server.name}" failed: ${err.message}`);
+        resolve();
+      });
+    });
+  });
+  await Promise.all(promises);
+  console.log('MCP: Cache warm completed');
 }
 
 export async function disconnectMcpClients(clients) {

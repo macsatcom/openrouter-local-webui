@@ -4,6 +4,9 @@ import { queries, getSetting, getLoggingEnabled, setLoggingEnabled, getOpenRoute
 import { hashPassword } from '../auth.js';
 import { connectToMcpServers, listToolsFromClients, disconnectMcpClients } from '../mcp-client.js';
 import db from '../db.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const router = express.Router();
 
@@ -47,6 +50,105 @@ function getModelPrice(m) {
   const prompt = parseFloat(m.pricing?.prompt) || 0;
   const completion = parseFloat(m.pricing?.completion) || 0;
   return prompt + completion;
+}
+
+const __adminDirname = path.dirname(fileURLToPath(import.meta.url));
+const MARKETPLACE_CACHE = path.join(__adminDirname, '..', '..', 'data', 'marketplace-cache.json');
+const MARKETPLACE_SOURCE = 'https://mcp-marketplace.io/llms-full.txt';
+const MARKETPLACE_TTL = 24 * 60 * 60 * 1000;
+
+const INCOMPATIBLE_PATTERNS = [
+  'blender', 'godot', 'unreal', 'unity', 'ios simulator', 'android studio',
+  'chrome browser', 'chrome extension', 'peekaboo', 'figma', 'photoshop',
+  'premiere', 'after effects', 'xcode', 'swift', 'arkit', 'visionos',
+  'macos', 'mac only', 'windows only', 'hardware', 'gpio', 'arduino',
+  'vr', 'oculus', 'obsidian', 'whatsapp', 'slack', 'discord bot',
+  'desktop app', 'electron app', 'menubar', 'dock',
+];
+
+function isIncompatible(entry) {
+  const check = (entry.name + ' ' + (entry.description || '') + ' ' + (entry.summary || '') + ' ' + (entry.tags || '')).toLowerCase();
+  return INCOMPATIBLE_PATTERNS.some(p => check.includes(p));
+}
+
+function parseInstallCommand(installCmd) {
+  if (!installCmd) return null;
+  if (installCmd.includes('--transport http') || installCmd.includes('--transport streamable')) {
+    const urlMatch = installCmd.match(/(https?:\/\/\S+)/);
+    const nameMatch = installCmd.match(/claude mcp add(?: --transport \S+)?\s+(\S+)\s+/);
+    return {
+      transport_type: 'streamable-http',
+      command: null,
+      args: null,
+      url: urlMatch ? urlMatch[1] : null,
+      name: nameMatch ? nameMatch[1] : null
+    };
+  }
+  const uvxMatch = installCmd.match(/--\s*uvx\s+(.+)/);
+  if (uvxMatch) {
+    const rest = uvxMatch[1].trim();
+    return { transport_type: 'stdio', command: 'uvx', args: rest.split(/\s+/) };
+  }
+  const npxMatch = installCmd.match(/--\s*npx\s+(.+)/);
+  if (npxMatch) {
+    const rest = npxMatch[1].trim();
+    return { transport_type: 'stdio', command: 'npx', args: rest.split(/\s+/) };
+  }
+  const pipMatch = installCmd.match(/--\s*pip\s+(.+)/);
+  if (pipMatch) {
+    return { transport_type: 'stdio', command: 'python3', args: ['-m', ...pipMatch[1].trim().split(/\s+/)] };
+  }
+  return null;
+}
+
+function parseMarketplaceEntries(text) {
+  const entries = [];
+  const blocks = text.split(/\n---+\n/);
+  for (const block of blocks) {
+    if (!block.trim() || block.includes('Generated:') || block.includes('Total servers:')) continue;
+    const entry = {};
+    const lines = block.split('\n');
+    let currentKey = '';
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (i === 0 && line.startsWith('## ')) {
+        entry.name = line.slice(3).trim();
+        continue;
+      }
+      const kvMatch = line.match(/^([A-Za-z ]+?):\s*(.*)/);
+      if (kvMatch) {
+        currentKey = kvMatch[1].trim();
+        entry[currentKey] = kvMatch[2].trim();
+      } else if (currentKey && line.trim() && !line.startsWith('Install')) {
+        entry[currentKey] = (entry[currentKey] || '') + ' ' + line.trim();
+      }
+    }
+    const name = entry.name || (entry['URL'] ? entry['URL'].split('/').pop() : null);
+    if (name && name !== 'MCP Marketplace' && name !== 'Complete Server Catalog') {
+      entries.push(entry);
+    }
+  }
+  return entries;
+}
+
+function loadMarketplaceCache() {
+  try {
+    if (fs.existsSync(MARKETPLACE_CACHE)) {
+      const stat = fs.statSync(MARKETPLACE_CACHE);
+      if (Date.now() - stat.mtimeMs < MARKETPLACE_TTL) {
+        return JSON.parse(fs.readFileSync(MARKETPLACE_CACHE, 'utf-8'));
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function saveMarketplaceCache(entries) {
+  try {
+    const dir = path.dirname(MARKETPLACE_CACHE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(MARKETPLACE_CACHE, JSON.stringify(entries));
+  } catch {}
 }
 
 router.get('/models', requireAdmin, async (req, res) => {
@@ -246,6 +348,85 @@ router.delete('/skills/:id', requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+router.get('/mcp/marketplace', requireAdmin, async (req, res) => {
+  const { search, category, mode, hide_incompatible, refresh } = req.query;
+
+  let entries = refresh === '1' ? null : loadMarketplaceCache();
+
+  if (!entries) {
+    try {
+      const response = await fetch(MARKETPLACE_SOURCE, { signal: AbortSignal.timeout(60000) });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const text = await response.text();
+      entries = parseMarketplaceEntries(text);
+      saveMarketplaceCache(entries);
+    } catch (e) {
+      entries = loadMarketplaceCache();
+      if (!entries) {
+        return res.status(502).json({ error: 'Failed to fetch marketplace data', detail: e.message });
+      }
+      res.setHeader('X-Marketplace-Stale', '1');
+    }
+  }
+
+  let filtered = entries;
+
+  if (hide_incompatible === '1') {
+    filtered = filtered.filter(e => !isIncompatible(e));
+  }
+
+  if (mode === 'local') {
+    filtered = filtered.filter(e => (e.Mode || '').toLowerCase() === 'local');
+  } else if (mode === 'remote') {
+    filtered = filtered.filter(e => (e.Mode || '').toLowerCase() === 'remote');
+  }
+
+  if (category) {
+    filtered = filtered.filter(e => (e.Category || '').toLowerCase() === category.toLowerCase());
+  }
+
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(e => {
+      return (e.name || '').toLowerCase().includes(q) ||
+        (e.Summary || '').toLowerCase().includes(q) ||
+        (e.Description || '').toLowerCase().includes(q) ||
+        (e.Tags || '').toLowerCase().includes(q) ||
+        (e.Category || '').toLowerCase().includes(q);
+    });
+  }
+
+  const categories = [...new Set(entries.map(e => e.Category).filter(Boolean))].sort();
+  const total = entries.length;
+  const shown = filtered.length;
+
+  res.json({
+    total,
+    shown,
+    categories,
+    entries: filtered.slice(0, 200).map(e => ({
+      name: e.name,
+      summary: e.Summary || '',
+      description: (e.Description || '').slice(0, 300),
+      category: e.Category || '',
+      mode: e.Mode || '',
+      pricing: e.Pricing || '',
+      github: e.GitHub || '',
+      githubStars: e['GitHub Stars'] || '',
+      securityScore: e['Security Score'] || '',
+      install: e['Install (Claude Code)'] || e['Install (Claude Code Remote)'] || '',
+      requiredCredentials: e['Required Credentials'] || '',
+      npm: e['npm'] || '',
+      pypi: e['PyPI'] || '',
+      remoteUrl: e['Remote URL'] || e['streamable-http'] || '',
+      mcpTools: e['MCP Tools'] || '',
+      tags: e['Tags'] || '',
+      creator: e['Creator'] || '',
+      parsed: parseInstallCommand(e['Install (Claude Code)'] || e['Install (Claude Code Remote)'] || '')
+    }))
+  });
+});
+
 router.get('/mcp/servers', requireAdmin, (req, res) => {
   const servers = queries.getAllMcpServers.all();
   res.json({ servers });
@@ -256,14 +437,14 @@ router.post('/mcp/servers', requireAdmin, (req, res) => {
   if (!name) {
     return res.status(400).json({ error: 'Name required' });
   }
-  if (!transport_type || !['stdio', 'sse'].includes(transport_type)) {
-    return res.status(400).json({ error: 'transport_type must be stdio or sse' });
+  if (!transport_type || !['stdio', 'sse', 'streamable-http'].includes(transport_type)) {
+    return res.status(400).json({ error: 'transport_type must be stdio, sse, or streamable-http' });
   }
   if (transport_type === 'stdio' && !command) {
     return res.status(400).json({ error: 'Command required for stdio transport' });
   }
-  if (transport_type === 'sse' && !url) {
-    return res.status(400).json({ error: 'URL required for SSE transport' });
+  if ((transport_type === 'sse' || transport_type === 'streamable-http') && !url) {
+    return res.status(400).json({ error: 'URL required for SSE/streamable-http transport' });
   }
   try {
     const result = queries.createMcpServer.run(
@@ -287,8 +468,8 @@ router.put('/mcp/servers/:id', requireAdmin, (req, res) => {
   if (!name) {
     return res.status(400).json({ error: 'Name required' });
   }
-  if (!transport_type || !['stdio', 'sse'].includes(transport_type)) {
-    return res.status(400).json({ error: 'transport_type must be stdio or sse' });
+  if (!transport_type || !['stdio', 'sse', 'streamable-http'].includes(transport_type)) {
+    return res.status(400).json({ error: 'transport_type must be stdio, sse, or streamable-http' });
   }
   queries.updateMcpServer.run(
     name, description || '', transport_type,

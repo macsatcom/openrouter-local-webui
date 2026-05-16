@@ -8,6 +8,10 @@ RUN apk add --no-cache curl && \
     tar -xzf uv.tar.gz -C /usr/local/bin --strip-components=1 && \
     rm uv.tar.gz
 
+# Install Python 3 + pip (required for Python-based MCP servers)
+RUN apk add --no-cache python3 py3-pip && \
+    pip install --break-system-packages mcp
+
 COPY package*.json ./
 RUN npm install
 
