@@ -67,7 +67,7 @@ const INCOMPATIBLE_PATTERNS = [
 ];
 
 function isIncompatible(entry) {
-  const check = (entry.name + ' ' + (entry.description || '') + ' ' + (entry.summary || '') + ' ' + (entry.tags || '')).toLowerCase();
+  const check = (entry.name + ' ' + (entry.Description || '') + ' ' + (entry.Summary || '') + ' ' + (entry.Tags || '')).toLowerCase();
   return INCOMPATIBLE_PATTERNS.some(p => check.includes(p));
 }
 
@@ -111,7 +111,7 @@ function parseMarketplaceEntries(text) {
     let currentKey = '';
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (i === 0 && line.startsWith('## ')) {
+      if (line.startsWith('## ')) {
         entry.name = line.slice(3).trim();
         continue;
       }
@@ -125,6 +125,7 @@ function parseMarketplaceEntries(text) {
     }
     const name = entry.name || (entry['URL'] ? entry['URL'].split('/').pop() : null);
     if (name && name !== 'MCP Marketplace' && name !== 'Complete Server Catalog') {
+      if (!entry.name) entry.name = name;
       entries.push(entry);
     }
   }
