@@ -115,7 +115,7 @@ function renderConversations() {
   }
   conversationsListEl.innerHTML = conversations.map(c => `
     <div class="conversation-item ${c.id === currentConversationId ? 'active' : ''}" data-id="${c.id}" onclick="selectConversation(${c.id})">
-      <span class="conversation-title" id="title-${c.id}" ondblclick="editTitle(${c.id}, event)" title="Double-click to rename">${escapeHtml(c.title)}</span>
+      <span class="conversation-title" id="title-${c.id}" onclick="event.stopPropagation()" ondblclick="editTitle(${c.id}, event)" title="Double-click to rename">${escapeHtml(c.title)}</span>
       <button class="conversation-delete" onclick="deleteConversation(${c.id}, event)">×</button>
     </div>
   `).join('');
@@ -144,6 +144,7 @@ async function newConversation() {
 }
 
 async function selectConversation(id) {
+  if (id === currentConversationId) return;
   currentConversationId = id;
   localStorage.setItem('lastConversationId', id);
   try {
