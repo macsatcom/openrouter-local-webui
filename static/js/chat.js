@@ -348,9 +348,13 @@ async function sendMessage() {
 
   const assistantDiv = document.createElement('div');
   assistantDiv.className = 'message assistant';
-  assistantDiv.innerHTML = '<div class="role">Assistant</div><div class="content"></div>';
+  assistantDiv.innerHTML = '<div class="role">Assistant</div><div class="content"><div class="body"></div></div>';
   messagesEl.appendChild(assistantDiv);
   messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  const contentEl = assistantDiv.querySelector('.content');
+  const bodyEl = contentEl.querySelector('.body');
+  let streamedText = '';
 
   try {
     const response = await fetch('/api/chat/chat', {
@@ -367,7 +371,7 @@ async function sendMessage() {
 
     if (!response.ok) {
       const error = await response.json();
-      assistantDiv.querySelector('.content').innerHTML = `<div class="error">Error: ${error.error}</div>`;
+      contentEl.innerHTML = `<div class="error">Error: ${error.error}</div>`;
       return;
     }
 
@@ -386,7 +390,8 @@ async function sendMessage() {
             try {
               const data = JSON.parse(line.slice(6));
               if (data.content) {
-                assistantDiv.querySelector('.content').textContent += data.content;
+                streamedText += data.content;
+                bodyEl.innerHTML = typeof marked !== 'undefined' ? marked.parse(escapeHtml(streamedText)) : escapeHtml(streamedText);
                 messagesEl.scrollTop = messagesEl.scrollHeight;
               }
               if (data.tool_call) {
@@ -394,7 +399,7 @@ async function sendMessage() {
                 statusDiv.className = 'tool-status running';
                 statusDiv.setAttribute('data-tool', data.tool_call.name);
                 statusDiv.textContent = '\uD83D\uDD27 ' + data.tool_call.name + '...';
-                assistantDiv.querySelector('.content').appendChild(statusDiv);
+                contentEl.appendChild(statusDiv);
                 messagesEl.scrollTop = messagesEl.scrollHeight;
               }
               if (data.tool_result) {
@@ -411,7 +416,7 @@ async function sendMessage() {
               }
               if (data.done) {
                 if (data.usage) {
-                  assistantDiv.querySelector('.content').innerHTML += `\n\n<small style="color:#888">Cost: $${data.usage.cost?.toFixed(4) || '?'} | Tokens: ${data.usage.tokens || '?'}</small>`;
+                  bodyEl.innerHTML += `<div class="usage-info">Cost: $${data.usage.cost?.toFixed(4) || '?'} | Tokens: ${data.usage.tokens || '?'}</div>`;
                 }
                 if (data.conversation_id && data.conversation_id !== currentConversationId) {
                   currentConversationId = data.conversation_id;
@@ -420,7 +425,7 @@ async function sendMessage() {
                 loadConversations();
               }
               if (data.error) {
-                assistantDiv.querySelector('.content').innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                contentEl.innerHTML = `<div class="error">Error: ${data.error}</div>`;
               }
             } catch {}
           }
@@ -428,7 +433,7 @@ async function sendMessage() {
       }
     }
   } catch (e) {
-    assistantDiv.querySelector('.content').innerHTML = `<div class="error">Request failed: ${e.message}</div>`;
+    contentEl.innerHTML = `<div class="error">Request failed: ${e.message}</div>`;
   } finally {
     sendBtn.disabled = false;
     sendBtn.textContent = 'Send';
