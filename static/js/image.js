@@ -45,6 +45,14 @@ async function loadModels() {
     const data = await res.json();
     imageModels = data.models;
     renderDropdown(imageModels);
+    const lastModel = localStorage.getItem('lastModelId');
+    if (lastModel) {
+      const model = imageModels.find(m => m.id === lastModel);
+      if (model) {
+        modelSelect.value = model.id;
+        modelFilterInput.value = model.name || model.id;
+      }
+    }
   } catch (e) {
     statusEl.innerHTML = '<div class="error">Failed to load models</div>';
   }
@@ -57,6 +65,8 @@ async function generate() {
     statusEl.innerHTML = '<div class="error">Please enter a prompt</div>';
     return;
   }
+
+  localStorage.setItem('lastModelId', model);
 
   generateBtn.disabled = true;
   generateBtn.innerHTML = '<span class="loading"></span> Generating...';

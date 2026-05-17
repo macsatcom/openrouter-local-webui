@@ -1,5 +1,5 @@
 if (typeof marked !== 'undefined') {
-  marked.setOptions({ breaks: true });
+  marked.setOptions({ breaks: false });
   marked.use({
     renderer: {
       link({ href, title, text }) {
@@ -44,6 +44,52 @@ let mcpOptions = [];
 let selectedSkills = new Set();
 let selectedMcps = new Set();
 let activeMultiSelect = null;
+
+const PREFS_KEY = 'conversationPreferences';
+const LAST_MODEL_KEY = 'lastModelId';
+
+function getConversationPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+function saveConversationPrefs(convId, model, mcpIds, skillIds) {
+  const prefs = getConversationPrefs();
+  prefs[convId] = { model, mcp: mcpIds, skills: skillIds };
+  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+}
+
+function applyModelToUI(modelId) {
+  const model = chatModels.find(m => m.id === modelId);
+  if (model) {
+    modelSelect.value = model.id;
+    modelFilterInput.value = model.name || model.id;
+    localStorage.setItem(LAST_MODEL_KEY, model.id);
+  }
+}
+
+function loadAndApplyConvPrefs(convId) {
+  const prefs = getConversationPrefs();
+  const entry = prefs[convId];
+  if (entry) {
+    if (entry.model) applyModelToUI(entry.model);
+    selectedSkills = new Set(entry.skills || []);
+    selectedMcps = new Set(entry.mcp || []);
+  } else {
+    const lastModel = localStorage.getItem(LAST_MODEL_KEY);
+    if (lastModel) applyModelToUI(lastModel);
+    selectedSkills = new Set();
+    selectedMcps = new Set();
+  }
+  if (skillOptions.length > 0) {
+    renderMultiSelectOptions('skill');
+    updateMultiSelectTrigger('skill');
+  }
+  if (mcpOptions.length > 0) {
+    renderMultiSelectOptions('mcp');
+    updateMultiSelectTrigger('mcp');
+  }
+}
 
 function toggleMultiSelect(type) {
   const dropdown = type === 'skill' ? skillDropdown : mcpDropdown;
@@ -224,6 +270,12 @@ async function newConversation() {
     clearMessages();
     chatAreaEl.style.display = '';
     emptyStateEl.style.display = 'none';
+    const lastModel = localStorage.getItem(LAST_MODEL_KEY);
+    if (lastModel) applyModelToUI(lastModel);
+    selectedSkills = new Set();
+    selectedMcps = new Set();
+    if (skillOptions.length > 0) { renderMultiSelectOptions('skill'); updateMultiSelectTrigger('skill'); }
+    if (mcpOptions.length > 0) { renderMultiSelectOptions('mcp'); updateMultiSelectTrigger('mcp'); }
     loadConversations();
     inputEl.focus();
   } catch (e) {
@@ -240,6 +292,7 @@ async function selectConversation(id) {
     const res = await fetch(`/api/conversations/${id}`);
     const data = await res.json();
     renderMessages(data.messages);
+    loadAndApplyConvPrefs(id);
     chatAreaEl.style.display = '';
     emptyStateEl.style.display = 'none';
     renderConversations();
@@ -273,7 +326,7 @@ function renderMessages(msgs) {
     return `
       <div class="message ${m.role}">
         <div class="role">${roleLabel}</div>
-        <div class="content">${contentHtml}</div>
+        <div class="content"><div class="body">${contentHtml}</div></div>
       </div>
     `;
   }).join('');
@@ -512,6 +565,8 @@ async function sendMessage() {
                   currentConversationId = data.conversation_id;
                   localStorage.setItem('lastConversationId', currentConversationId);
                 }
+                saveConversationPrefs(currentConversationId, model, mcpServerIds, skillIds);
+                localStorage.setItem(LAST_MODEL_KEY, model);
                 loadConversations();
               }
               if (data.error) {
@@ -642,5 +697,9 @@ checkAuth().then(async () => {
     if (conv) {
       await selectConversation(parseInt(lastId));
     }
+  }
+  if (!currentConversationId) {
+    const lastModel = localStorage.getItem(LAST_MODEL_KEY);
+    if (lastModel) applyModelToUI(lastModel);
   }
 });
