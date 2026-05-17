@@ -53,6 +53,19 @@ function createTransport(server) {
   });
 }
 
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(label + ' timed out after ' + (ms / 1000) + 's')), ms)
+    )
+  ]);
+}
+
+const MCP_CONNECT_TIMEOUT = 15000;
+const MCP_TOOL_TIMEOUT = 30000;
+const MAX_TOOL_RESULT_CHARS = 8000;
+
 export async function connectToMcpServers(serverConfigs) {
   const clients = [];
 
@@ -65,7 +78,7 @@ export async function connectToMcpServers(serverConfigs) {
       });
 
       const transport = createTransport(server);
-      await client.connect(transport);
+      await withTimeout(client.connect(transport), MCP_CONNECT_TIMEOUT, 'MCP connect ' + server.name);
       clients.push({ client, transport, prefix, name: server.name });
     } catch (err) {
       console.error(`MCP: Failed to connect to "${server.name}":`, err.message);
@@ -81,7 +94,7 @@ export async function listToolsFromClients(clients) {
 
   for (const entry of clients) {
     try {
-      const result = await entry.client.listTools();
+      const result = await withTimeout(entry.client.listTools(), MCP_CONNECT_TIMEOUT, 'MCP listTools ' + entry.name);
       for (const tool of result.tools) {
         const prefixedName = entry.prefix + tool.name;
         toolMap[prefixedName] = { client: entry.client, transport: entry.transport, originalName: tool.name };
@@ -109,10 +122,11 @@ export async function callMcpTool(toolMap, prefixedName, args) {
   }
 
   try {
-    const result = await entry.client.callTool({
-      name: entry.originalName,
-      arguments: args
-    });
+    const result = await withTimeout(
+      entry.client.callTool({ name: entry.originalName, arguments: args }),
+      MCP_TOOL_TIMEOUT,
+      'MCP tool ' + prefixedName
+    );
 
     const content = result.content || [];
     const textParts = content
@@ -120,7 +134,12 @@ export async function callMcpTool(toolMap, prefixedName, args) {
       .map(c => c.text)
       .join('\n');
 
-    return { result: textParts || JSON.stringify(result) };
+    let output = textParts || JSON.stringify(result);
+    if (output.length > MAX_TOOL_RESULT_CHARS) {
+      output = output.slice(0, MAX_TOOL_RESULT_CHARS) + '\n... [truncated ' + (output.length - MAX_TOOL_RESULT_CHARS) + ' chars]';
+    }
+
+    return { result: output };
   } catch (err) {
     return { error: err.message };
   }

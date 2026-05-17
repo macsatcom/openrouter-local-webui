@@ -165,12 +165,13 @@ router.post('/chat', requireAuth, async (req, res) => {
     let currentMessages = [...systemMessages, ...messages];
     let toolsToSend = mcpTools && mcpTools.length > 0 ? mcpTools : undefined;
     let maxRounds = 5;
+    const effectiveMaxTokens = toolsToSend ? Math.max(max_tokens || 4096, 8192) : (max_tokens || 4096);
 
     while (maxRounds-- > 0) {
       const body = {
         model,
         messages: currentMessages,
-        max_tokens: max_tokens || 4096,
+        max_tokens: effectiveMaxTokens,
         stream: true
       };
       if (toolsToSend) {
@@ -300,7 +301,7 @@ router.post('/chat', requireAuth, async (req, res) => {
         continue;
       }
 
-      if (finishReason === 'stop' || finishReason === null || finishReason === undefined) {
+      if (finishReason === 'stop' || finishReason === 'length' || finishReason === null || finishReason === undefined) {
         break;
       }
       if (!toolMap) break;

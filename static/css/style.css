@@ -1342,16 +1342,25 @@ tr:hover td {
 .multi-select-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 6px 10px;
   font-size: 13px;
   color: var(--text);
   cursor: pointer;
   white-space: nowrap;
+  text-align: left;
+}
+.multi-select-item span {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .multi-select-item:hover {
   background: var(--surface);
 }
 .multi-select-item input[type="checkbox"] {
   margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
 }

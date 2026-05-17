@@ -135,7 +135,7 @@ function renderMultiSelectOptions(type) {
   dropdown.innerHTML = options.map(o => `
     <label class="multi-select-item" onclick="event.stopPropagation()">
       <input type="checkbox" value="${o.id}" ${selected.has(o.id) ? 'checked' : ''} onchange="toggleMultiOption('${type}', ${o.id}, this.checked)">
-      ${escapeHtml(o.name)}
+      <span>${escapeHtml(o.name)}</span>
     </label>
   `).join('');
 }
