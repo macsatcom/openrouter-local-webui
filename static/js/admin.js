@@ -121,6 +121,7 @@ async function loadUsers() {
       <td>${escapeHtml(u.username)}</td>
       <td>${u.is_admin ? 'Yes' : 'No'}</td>
       <td>${modelText}</td>
+      <td><button class="btn" onclick="showMemories(${u.id}, '${escapeHtml(u.username)}')">Memories</button></td>
       <td>${u.daily_limit_cents < 0 ? 'No limit' : '$' + (u.daily_limit_cents / 100).toFixed(2)}</td>
       <td>${u.monthly_limit_cents < 0 ? 'No limit' : '$' + (u.monthly_limit_cents / 100).toFixed(2)}</td>
       <td>${new Date(u.created_at).toLocaleDateString()}</td>
@@ -307,6 +308,65 @@ async function deleteUser(id) {
   loadUsers();
 }
 
+async function showMemories(userId, username) {
+  document.getElementById('memoryUserId').value = userId;
+  document.getElementById('memoryModalTitle').textContent = 'Memories: ' + username;
+  document.getElementById('memoryKey').value = '';
+  document.getElementById('memoryValue').value = '';
+  await loadMemories();
+  document.getElementById('memoryModal').classList.add('active');
+  document.getElementById('memoryKey').focus();
+}
+
+async function loadMemories() {
+  const userId = document.getElementById('memoryUserId').value;
+  const res = await fetch(`/api/admin/users/${userId}/memories`);
+  const data = await res.json();
+  const list = document.getElementById('memoriesList');
+  if (data.memories.length === 0) {
+    list.innerHTML = '<p style="color:#888; text-align:center; padding:20px;">No memories yet. Add one below.</p>';
+    return;
+  }
+  list.innerHTML = data.memories.map(m => `
+    <div class="memory-row" style="display:flex; align-items:center; padding:6px 0; border-bottom:1px solid var(--border);">
+      <span style="font-weight:600; min-width:120px; color:var(--accent);">${escapeHtml(m.key)}</span>
+      <span style="flex:1; color:var(--text);">${escapeHtml(m.value)}</span>
+      <button class="btn btn-danger memory-delete-btn" data-key="${m.key.replace(/"/g, '&quot;')}" style="padding:2px 8px; font-size:11px;">x</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('.memory-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteMemory(btn.dataset.key));
+  });
+}
+
+async function addMemory() {
+  const userId = document.getElementById('memoryUserId').value;
+  const key = document.getElementById('memoryKey').value.trim();
+  const value = document.getElementById('memoryValue').value.trim();
+  if (!key || !value) return;
+  const res = await fetch(`/api/admin/users/${userId}/memories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, value })
+  });
+  if (res.ok) {
+    document.getElementById('memoryKey').value = '';
+    document.getElementById('memoryValue').value = '';
+    document.getElementById('memoryKey').focus();
+    await loadMemories();
+  }
+}
+
+async function deleteMemory(key) {
+  const userId = document.getElementById('memoryUserId').value;
+  await fetch(`/api/admin/users/${userId}/memories/${encodeURIComponent(key)}`, { method: 'DELETE' });
+  await loadMemories();
+}
+
+function closeMemoryModal() {
+  document.getElementById('memoryModal').classList.remove('active');
+}
+
 async function loadChatLogs(offset = 0) {
   chatLogsOffset = offset;
   const userId = document.getElementById('chatLogUser').value;
@@ -346,15 +406,20 @@ async function loadImageLogs(offset = 0) {
   const data = await res.json();
 
   const table = document.getElementById('imageLogsTable');
-  table.innerHTML = data.logs.map(l => `
+  table.innerHTML = data.logs.map(l => {
+    const imgUrl = l.image_path ? `/api/image/download/${l.image_path}` : null;
+    const promptText = l.prompt?.length > 50 ? l.prompt.slice(0, 50) + '...' : (l.prompt || '');
+    return `
     <tr>
       <td>${escapeHtml(l.username)}</td>
       <td>${escapeHtml(l.model)}</td>
-      <td>${escapeHtml(l.prompt?.slice(0, 50))}...</td>
+      <td title="${escapeHtml(l.prompt || '')}">${escapeHtml(promptText)}</td>
+      <td>${imgUrl ? `<img src="${imgUrl}" class="admin-image-thumb" onclick="event.stopPropagation(); openLightbox('${imgUrl}')" alt="Preview">` : '-'}</td>
       <td>$${l.cost?.toFixed(4) || '?'}</td>
       <td>${new Date(l.created_at).toLocaleString()}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   const pagination = document.getElementById('imageLogsPagination');
   if (data.total > 20) {
@@ -366,6 +431,17 @@ async function loadImageLogs(offset = 0) {
   } else {
     pagination.innerHTML = '';
   }
+}
+
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('active');
+  document.body.style.overflow = '';
 }
 
 async function loadSkills() {
@@ -724,6 +800,17 @@ checkAdmin().then(async () => {
   loadSettings();
   loadUsers();
   setupTabListeners();
+
+  document.getElementById('memoryValue').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addMemory();
+  });
+  document.getElementById('memoryKey').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { document.getElementById('memoryValue').focus(); }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLightbox();
+  });
 });
 
 function setupTabListeners() {

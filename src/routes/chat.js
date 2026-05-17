@@ -110,6 +110,16 @@ router.post('/chat', requireAuth, async (req, res) => {
   }
 
   const systemMessages = [];
+
+  const memories = queries.getUserMemories.all(req.user.id);
+  if (memories.length > 0) {
+    const context = memories.map(m => `- ${m.key}: ${m.value}`).join('\n');
+    systemMessages.push({
+      role: 'system',
+      content: `[User Context — reference this when relevant to personalize responses. This is known about the user:]\n${context}`
+    });
+  }
+
   if (skill_ids && skill_ids.length > 0) {
     for (const sid of skill_ids) {
       const skill = queries.getSkillById.get(sid);

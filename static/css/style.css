@@ -1014,6 +1014,20 @@ select {
   color: var(--text);
 }
 
+.admin-image-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: transform 0.15s;
+}
+.admin-image-thumb:hover {
+  transform: scale(1.1);
+  border-color: var(--accent);
+}
+
 /* ============================================================
    Admin Panel
    ============================================================ */

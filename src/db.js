@@ -122,6 +122,16 @@ db.exec(`
     enabled INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS user_memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, key),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
 `);
 
 try {
@@ -189,7 +199,11 @@ export const queries = {
   getEnabledMcpServers: db.prepare('SELECT * FROM mcp_servers WHERE enabled = 1 ORDER BY name'),
   createMcpServer: db.prepare('INSERT INTO mcp_servers (name, description, transport_type, command, args, url, auth_token, env, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'),
   updateMcpServer: db.prepare('UPDATE mcp_servers SET name = ?, description = ?, transport_type = ?, command = ?, args = ?, url = ?, auth_token = ?, env = ?, enabled = ? WHERE id = ?'),
-  deleteMcpServer: db.prepare('DELETE FROM mcp_servers WHERE id = ?')
+  deleteMcpServer: db.prepare('DELETE FROM mcp_servers WHERE id = ?'),
+
+  getUserMemories: db.prepare('SELECT key, value FROM user_memories WHERE user_id = ? ORDER BY key'),
+  upsertUserMemory: db.prepare('INSERT INTO user_memories (user_id, key, value) VALUES (?, ?, ?) ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'),
+  deleteUserMemory: db.prepare('DELETE FROM user_memories WHERE user_id = ? AND key = ?')
 };
 
 export function getSetting(key, defaultValue = null) {

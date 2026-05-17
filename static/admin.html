@@ -49,6 +49,7 @@
               <th>Username</th>
               <th>Admin</th>
               <th>Models</th>
+              <th>Memories</th>
               <th>Daily Limit</th>
               <th>Monthly Limit</th>
               <th>Created</th>
@@ -129,6 +130,7 @@
               <th>User</th>
               <th>Model</th>
               <th>Prompt</th>
+              <th>Image</th>
               <th>Cost</th>
               <th>Date</th>
             </tr>
@@ -243,6 +245,22 @@
     </div>
   </div>
 
+  <div class="modal" id="memoryModal">
+    <div class="modal-content" style="max-width: 500px;">
+      <h2 id="memoryModalTitle">Memories</h2>
+      <input type="hidden" id="memoryUserId">
+      <div id="memoriesList" style="max-height: 350px; overflow-y: auto; margin-bottom: 12px;"></div>
+      <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+        <input type="text" id="memoryKey" class="model-search" placeholder="Key (e.g. prefers)" style="flex: 1;">
+        <input type="text" id="memoryValue" class="model-search" placeholder="Value (e.g. concise answers)" style="flex: 2;">
+        <button class="btn" onclick="addMemory()">Add</button>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn" onclick="closeMemoryModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="skillModal">
     <div class="modal-content">
       <h2 id="skillModalTitle">Create Skill</h2>
@@ -315,6 +333,11 @@
         <button class="btn" onclick="saveMcpServer()">Save</button>
       </div>
     </div>
+  </div>
+
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <span class="lightbox-close">&times;</span>
+    <img id="lightboxImg" src="">
   </div>
 
   <script src="/js/admin.js"></script>

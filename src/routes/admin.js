@@ -272,6 +272,35 @@ router.delete('/users/:id', requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+router.get('/users/:id/memories', requireAdmin, (req, res) => {
+  const userId = parseInt(req.params.id);
+  const user = queries.getUserById.get(userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const memories = queries.getUserMemories.all(userId);
+  res.json({ memories });
+});
+
+router.post('/users/:id/memories', requireAdmin, (req, res) => {
+  const userId = parseInt(req.params.id);
+  const { key, value } = req.body;
+  if (!key || value === undefined) {
+    return res.status(400).json({ error: 'key and value required' });
+  }
+  const user = queries.getUserById.get(userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  queries.upsertUserMemory.run(userId, key.trim(), value);
+  res.json({ success: true });
+});
+
+router.delete('/users/:id/memories/:key', requireAdmin, (req, res) => {
+  const userId = parseInt(req.params.id);
+  const key = decodeURIComponent(req.params.key);
+  const user = queries.getUserById.get(userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  queries.deleteUserMemory.run(userId, key);
+  res.json({ success: true });
+});
+
 router.get('/settings', requireAdmin, (req, res) => {
   res.json({
     openrouter_api_key: getOpenRouterApiKey() || '',
