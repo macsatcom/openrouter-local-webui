@@ -276,6 +276,7 @@ async function newConversation() {
     selectedMcps = new Set();
     if (skillOptions.length > 0) { renderMultiSelectOptions('skill'); updateMultiSelectTrigger('skill'); }
     if (mcpOptions.length > 0) { renderMultiSelectOptions('mcp'); updateMultiSelectTrigger('mcp'); }
+    closeSidebar();
     loadConversations();
     inputEl.focus();
   } catch (e) {
@@ -295,6 +296,7 @@ async function selectConversation(id) {
     loadAndApplyConvPrefs(id);
     chatAreaEl.style.display = '';
     emptyStateEl.style.display = 'none';
+    closeSidebar();
     renderConversations();
   } catch (e) {
     console.error('Failed to load conversation:', e);
@@ -615,6 +617,10 @@ function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
 }
 
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+}
+
 function renderDropdown(models) {
   modelDropdown.innerHTML = models.map(m =>
     `<div class="model-dropdown-item" data-value="${m.id}">${m.name || m.id}</div>`
@@ -676,6 +682,7 @@ inputEl.addEventListener('keydown', e => {
 
 clearBtn.addEventListener('click', () => {
   clearMessages();
+    closeSidebar();
   if (currentConversationId) {
     localStorage.removeItem('lastConversationId');
     currentConversationId = null;

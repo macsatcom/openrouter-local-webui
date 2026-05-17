@@ -4,19 +4,19 @@
 
 :root {
   /* Surfaces */
-  --bg:        #0d0d0d;
-  --surface:   #131313;
-  --surface-2: #191919;
-  --surface-3: #222222;
+  --bg:        #141414;
+  --surface:   #1a1a1a;
+  --surface-2: #1f1f1f;
+  --surface-3: #282828;
 
   /* Borders */
-  --border:       rgba(255, 255, 255, 0.07);
-  --border-hover: rgba(255, 255, 255, 0.13);
+  --border:       rgba(255, 255, 255, 0.10);
+  --border-hover: rgba(255, 255, 255, 0.16);
 
   /* Text */
   --text:   #f0ede8;
-  --text-2: #9a9591;
-  --text-3: #5c5855;
+  --text-2: #a8a39e;
+  --text-3: #6e6a67;
 
   /* Accent — warm brass */
   --accent:     #c9a97a;
@@ -1229,27 +1229,71 @@ tr:hover td {
    ============================================================ */
 
 @media (max-width: 768px) {
+  /* --- Tighter header on mobile --- */
+  .header {
+    height: 46px;
+    padding: 0 12px;
+  }
+  .header h1 { font-size: 13px; }
+  .header nav a { font-size: 12px; padding: 4px 8px; }
+
+  /* --- Layout fixes for smaller header --- */
+  .chat-layout {
+    height: calc(100dvh - 46px);
+  }
+
+  /* --- Sidebar as overlay --- */
   .chat-sidebar {
     position: fixed;
     left: 0;
-    top: 54px;
+    top: 46px;
     bottom: 0;
+    width: 280px;
     z-index: 100;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
   }
-
   .chat-sidebar.open {
     transform: translateX(0);
   }
-
   .chat-sidebar-toggle {
     display: block;
+    position: fixed;
+    left: 10px;
+    top: 54px;
+    z-index: 99;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 16px;
   }
 
-  .message.user {
-    margin-left: 16px;
+  /* --- Tighter chat container --- */
+  .chat-container {
+    padding: 10px 12px 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
+  .chat-messages {
+    margin-bottom: 8px;
+  }
+
+  /* --- Narrower message indent --- */
+  .message {
+    padding: 10px 10px;
+  }
+  .message.user {
+    margin-left: 8px;
+  }
+
+  /* --- Compact model bar --- */
+  .model-select {
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+  .model-picker { min-width: 140px; }
 }
 
 /* MCP Tool Status */
