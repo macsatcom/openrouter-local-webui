@@ -24,6 +24,7 @@ const mcpDropdown = document.getElementById('mcpDropdown');
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('input');
 const sendBtn = document.getElementById('sendBtn');
+const stopBtn = document.getElementById('stopBtn');
 const clearBtn = document.getElementById('clearBtn');
 const conversationsListEl = document.getElementById('conversationsList');
 const chatAreaEl = document.getElementById('chatArea');
@@ -44,6 +45,7 @@ let mcpOptions = [];
 let selectedSkills = new Set();
 let selectedMcps = new Set();
 let activeMultiSelect = null;
+let abortController = null;
 
 const PREFS_KEY = 'conversationPreferences';
 const LAST_MODEL_KEY = 'lastModelId';
@@ -134,7 +136,7 @@ function renderMultiSelectOptions(type) {
   }
   dropdown.innerHTML = options.map(o => `
     <label class="multi-select-item" onclick="event.stopPropagation()">
-      <input type="checkbox" value="${o.id}" ${selected.has(o.id) ? 'checked' : ''} onchange="toggleMultiOption('${type}', ${o.id}, this.checked)">
+      <input type="checkbox" value="${o.id}" ${selected.has(o.id) ? 'checked' : ''} onchange="toggleMultiOption('${type}', '${o.id}', this.checked)">
       <span>${escapeHtml(o.name)}</span>
     </label>
   `).join('');
@@ -468,8 +470,8 @@ async function sendMessage() {
 
   inputEl.value = '';
   removeAttachedImage();
-  sendBtn.disabled = true;
-  sendBtn.innerHTML = '<span class="loading"></span>';
+  sendBtn.classList.add('hidden');
+  stopBtn.classList.remove('hidden');
 
   const skillIds = [...selectedSkills];
   const mcpServerIds = [...selectedMcps];
@@ -500,6 +502,9 @@ async function sendMessage() {
   const contentEl = assistantDiv.querySelector('.content');
   const bodyEl = contentEl.querySelector('.body');
   let streamedText = '';
+  let stopped = false;
+
+  abortController = new AbortController();
 
   try {
     const response = await fetch('/api/chat/chat', {
@@ -511,12 +516,17 @@ async function sendMessage() {
         skill_ids: skillIds,
         conversation_id: conversationId,
         mcp_server_ids: mcpServerIds
-      })
+      }),
+      signal: abortController.signal
     });
 
     if (!response.ok) {
       const error = await response.json();
       contentEl.innerHTML = `<div class="error">Error: ${error.error}</div>`;
+      stopBtn.classList.add('hidden');
+      sendBtn.classList.remove('hidden');
+      sendBtn.disabled = false;
+      abortController = null;
       return;
     }
 
@@ -580,11 +590,27 @@ async function sendMessage() {
       }
     }
   } catch (e) {
-    contentEl.innerHTML = `<div class="error">Request failed: ${e.message}</div>`;
-  } finally {
-    sendBtn.disabled = false;
-    sendBtn.textContent = 'Send';
+    if (e.name === 'AbortError') {
+      stopped = true;
+    } else {
+      contentEl.innerHTML = `<div class="error">Request failed: ${e.message}</div>`;
+    }
   }
+
+  if (stopped && streamedText) {
+    bodyEl.innerHTML = (typeof marked !== 'undefined' ? marked.parse(escapeHtml(streamedText)) : escapeHtml(streamedText)) + '<div class="stopped-badge">Stopped</div>';
+  }
+
+  if (!contentEl.querySelector('.error') && !contentEl.querySelector('.usage-info')) {
+    saveConversationPrefs(currentConversationId, model, mcpServerIds, skillIds);
+    localStorage.setItem(LAST_MODEL_KEY, model);
+    loadConversations();
+  }
+
+  stopBtn.classList.add('hidden');
+  sendBtn.classList.remove('hidden');
+  sendBtn.disabled = false;
+  abortController = null;
 }
 
 function renderContentParts(userContent) {
@@ -673,6 +699,11 @@ modelDropdown.addEventListener('click', (e) => {
 });
 
 sendBtn.addEventListener('click', sendMessage);
+stopBtn.addEventListener('click', () => {
+  if (abortController) {
+    abortController.abort();
+  }
+});
 inputEl.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
