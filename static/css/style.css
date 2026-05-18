@@ -1396,7 +1396,9 @@ tr:hover td {
 }
 .multi-select-item span {
   flex: 1;
+  min-width: 0;
   text-align: left;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
