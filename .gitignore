@@ -8,3 +8,4 @@ generated-images/
 .DS_Store
 server.log
 venv/
+awesome-openrouter/

@@ -939,6 +939,18 @@ select {
   border: 1px solid var(--border);
 }
 
+.chat-attach-pdf-label {
+  font-size: 12px;
+  color: var(--text-2);
+  padding: 0 4px;
+  line-height: 1.3;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
 /* -- Chat Inline Image (rendered in messages) -- */
 
 .message .content .chat-inline-image {
@@ -946,6 +958,31 @@ select {
   max-height: 280px;
   margin-top: 8px;
   display: block;
+}
+
+.chat-file-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.3;
+}
+
+.chat-file-icon {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 6px;
+  border-radius: 3px;
 }
 
 .message.user .content {

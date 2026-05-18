@@ -34,12 +34,14 @@ const chatImageInput = document.getElementById('chatImageInput');
 const chatAttachPreview = document.getElementById('chatAttachPreview');
 const chatAttachPreviewImg = document.getElementById('chatAttachPreviewImg');
 const chatAttachRemove = document.getElementById('chatAttachRemove');
+const chatAttachPdfLabel = document.getElementById('chatAttachPdfLabel');
 
 let currentUser = null;
 let currentConversationId = null;
 let conversations = [];
 let chatModels = [];
 let attachedImageBase64 = null;
+let attachedFileName = null;
 let skillOptions = [];
 let mcpOptions = [];
 let selectedSkills = new Set();
@@ -316,6 +318,7 @@ function renderMessages(msgs) {
           contentHtml = parts.map(p => {
             if (p.type === 'text') return escapeHtml(p.text);
             if (p.type === 'image_url') return `<img src="${escapeHtml(p.image_url?.url || '')}" class="chat-inline-image" alt="Attached image">`;
+            if (p.type === 'file') return `<div class="chat-file-attachment"><span class="chat-file-icon">PDF</span> ${escapeHtml(p.file?.filename || 'Attached file')}</div>`;
             return '';
           }).join(' ');
         } else {
@@ -405,6 +408,12 @@ async function deleteConversation(id, event) {
 
 function buildUserContent(text) {
   if (!attachedImageBase64) return text;
+  if (attachedImageBase64.startsWith('data:application/pdf')) {
+    return [
+      { type: 'text', text },
+      { type: 'file', file: { filename: attachedFileName || 'document.pdf', file_data: attachedImageBase64 } }
+    ];
+  }
   return [
     { type: 'text', text },
     { type: 'image_url', image_url: { url: attachedImageBase64 } }
@@ -450,7 +459,8 @@ async function sendMessage() {
     loadConversations();
   }
 
-  const userContent = buildUserContent(content || '[Image]');
+  const defaultPlaceholder = attachedImageBase64?.startsWith('data:application/pdf') ? '[File]' : '[Image]';
+  const userContent = buildUserContent(content || defaultPlaceholder);
 
   if (!currentConversationId) {
     const userMsg = document.createElement('div');
@@ -478,16 +488,25 @@ async function sendMessage() {
   const previousMessages = [...messagesEl.querySelectorAll('.message')].map(m => {
     const contentEl = m.querySelector('.content');
     const imgEl = contentEl.querySelector('img');
-    if (m.classList.contains('user') && imgEl) {
+    const fileEl = contentEl.querySelector('.chat-file-attachment');
+    if (m.classList.contains('user') && (imgEl || fileEl)) {
       const textParts = contentEl.childNodes;
       let text = '';
       for (const node of textParts) {
         if (node.nodeType === Node.TEXT_NODE) text += node.textContent;
       }
       text = text.trim();
-      const parts = [{ type: 'text', text: text || '[Image]' }];
-      const src = imgEl.getAttribute('src');
-      if (src) parts.push({ type: 'image_url', image_url: { url: src } });
+      const hasImg = !!imgEl;
+      const parts = [{ type: 'text', text: text || (hasImg ? '[Image]' : '[File]') }];
+      if (imgEl) {
+        const src = imgEl.getAttribute('src');
+        if (src) parts.push({ type: 'image_url', image_url: { url: src } });
+      }
+      if (fileEl) {
+        const fileUrl = fileEl.getAttribute('data-file-url');
+        const fileName = fileEl.textContent.replace('PDF', '').trim();
+        if (fileUrl) parts.push({ type: 'file', file: { filename: fileName || 'document.pdf', file_data: fileUrl } });
+      }
       return { role: 'user', content: parts };
     }
     return { role: m.classList.contains('user') ? 'user' : 'assistant', content: contentEl.textContent };
@@ -618,16 +637,26 @@ function renderContentParts(userContent) {
   return userContent.map(p => {
     if (p.type === 'text') return escapeHtml(p.text);
     if (p.type === 'image_url') return `<img src="${escapeHtml(p.image_url?.url || '')}" class="chat-inline-image" alt="Attached image">`;
+    if (p.type === 'file') return `<div class="chat-file-attachment" data-file-url="${escapeHtml(p.file?.file_data || '')}"><span class="chat-file-icon">PDF</span> ${escapeHtml(p.file?.filename || 'Attached file')}</div>`;
     return '';
   }).join(' ');
 }
 
 function handleAttachImage(file) {
   if (!file) return;
+  attachedFileName = file.name;
   const reader = new FileReader();
   reader.onload = function(e) {
     attachedImageBase64 = e.target.result;
-    chatAttachPreviewImg.src = attachedImageBase64;
+    if (file.type === 'application/pdf') {
+      chatAttachPreviewImg.classList.add('hidden');
+      chatAttachPdfLabel.textContent = file.name;
+      chatAttachPdfLabel.classList.remove('hidden');
+    } else {
+      chatAttachPreviewImg.src = attachedImageBase64;
+      chatAttachPreviewImg.classList.remove('hidden');
+      chatAttachPdfLabel.classList.add('hidden');
+    }
     chatAttachPreview.classList.remove('hidden');
   };
   reader.readAsDataURL(file);
@@ -635,8 +664,11 @@ function handleAttachImage(file) {
 
 function removeAttachedImage() {
   attachedImageBase64 = null;
+  attachedFileName = null;
   chatImageInput.value = '';
   chatAttachPreview.classList.add('hidden');
+  chatAttachPreviewImg.classList.remove('hidden');
+  chatAttachPdfLabel.classList.add('hidden');
 }
 
 function toggleSidebar() {

@@ -72,7 +72,7 @@
           <div class="chat-input">
             <textarea id="input" placeholder="Type your message..." rows="1"></textarea>
             <div class="chat-controls">
-              <input type="file" id="chatImageInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+              <input type="file" id="chatImageInput" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf" hidden>
               <button class="btn btn-ghost" id="attachImageBtn" title="Attach image">+</button>
               <button class="btn btn-danger hidden" id="stopBtn" title="Stop generation">Stop</button>
               <button class="btn btn-primary" id="sendBtn">Send</button>
@@ -80,6 +80,7 @@
           </div>
           <div class="chat-attach-preview hidden" id="chatAttachPreview">
             <img id="chatAttachPreviewImg" src="">
+            <span id="chatAttachPdfLabel" class="chat-attach-pdf-label hidden"></span>
             <button class="ref-image-remove" id="chatAttachRemove">&times;</button>
           </div>
         </div>
