@@ -1399,30 +1399,31 @@ tr:hover td {
 .multi-select-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  font-size: 13px;
-  color: var(--text-2);
-  cursor: pointer;
-  white-space: nowrap;
+  gap: 8px;
+  padding: 8px 12px;
+  color: var(--text);
   border-bottom: 1px solid var(--border);
 }
 .multi-select-item:last-child {
   border-bottom: none;
 }
-.multi-select-item span {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .multi-select-item:hover {
-  background: var(--surface-3);
-  color: var(--text);
+  background: rgba(255,255,255,0.05);
 }
 .multi-select-item input[type="checkbox"] {
   margin: 0;
   flex-shrink: 0;
   accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+.multi-select-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
 }

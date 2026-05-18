@@ -135,10 +135,10 @@ function renderMultiSelectOptions(type) {
     return;
   }
   dropdown.innerHTML = options.map(o => `
-    <label class="multi-select-item" onclick="event.stopPropagation()">
-      <input type="checkbox" value="${o.id}" ${selected.has(o.id) ? 'checked' : ''} onchange="toggleMultiOption('${type}', '${o.id}', this.checked)">
-      <span>${escapeHtml(o.name)}</span>
-    </label>
+    <div class="multi-select-item">
+      <input type="checkbox" value="${o.id}" id="${type}-cb-${o.id}" ${selected.has(o.id) ? 'checked' : ''} onchange="toggleMultiOption('${type}', '${o.id}', this.checked)">
+      <label for="${type}-cb-${o.id}" class="multi-select-label">${escapeHtml(o.name)}</label>
+    </div>
   `).join('');
 }
 
