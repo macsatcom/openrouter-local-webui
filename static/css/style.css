@@ -1,6 +1,14 @@
 /* ============================================================
-   Design System — Studio Dark
+   Design System — Studio Dark / Light
    ============================================================ */
+
+html {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
 
 :root {
   /* Surfaces */
@@ -39,6 +47,22 @@
 
   /* Motion */
   --t: 150ms ease;
+}
+
+html[data-theme="light"] {
+  --bg:        #f5f3f0;
+  --surface:   #ffffff;
+  --surface-2: #f0eeeb;
+  --surface-3: #e8e5e0;
+  --border:       rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.14);
+  --text:   #1c1b1a;
+  --text-2: #5c5a57;
+  --text-3: #9c9a97;
+  --accent:     #b8935f;
+  --accent-dim: rgba(184, 147, 95, 0.12);
+  --accent-fg:  #ffffff;
+  --danger-dim: rgba(217, 107, 107, 0.08);
 }
 
 /* ============================================================
@@ -357,6 +381,22 @@ select {
   gap: 10px;
   font-size: 13px;
   color: var(--text-2);
+}
+
+.theme-select {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  padding: 2px 6px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--t), border-color var(--t);
+}
+
+.theme-select:hover {
+  border-color: var(--border-hover);
 }
 
 .badge {

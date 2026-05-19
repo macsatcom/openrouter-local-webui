@@ -69,6 +69,10 @@ function applyModelToUI(modelId) {
     modelSelect.value = model.id;
     modelFilterInput.value = model.name || model.id;
     localStorage.setItem(LAST_MODEL_KEY, model.id);
+  } else if (chatModels.length > 0) {
+    modelSelect.value = chatModels[0].id;
+    modelFilterInput.value = chatModels[0].name || chatModels[0].id;
+    localStorage.setItem(LAST_MODEL_KEY, chatModels[0].id);
   }
 }
 
@@ -485,6 +489,9 @@ async function sendMessage() {
 
   const skillIds = [...selectedSkills];
   const mcpServerIds = [...selectedMcps];
+  if (currentConversationId) {
+    saveConversationPrefs(currentConversationId, model, mcpServerIds, skillIds);
+  }
   const previousMessages = [...messagesEl.querySelectorAll('.message')].map(m => {
     const contentEl = m.querySelector('.content');
     const imgEl = contentEl.querySelector('img');
@@ -726,6 +733,7 @@ modelDropdown.addEventListener('click', (e) => {
   if (item) {
     modelSelect.value = item.dataset.value;
     modelFilterInput.value = item.textContent;
+    localStorage.setItem(LAST_MODEL_KEY, item.dataset.value);
     modelDropdown.classList.remove('open');
   }
 });

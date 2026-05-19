@@ -23,13 +23,6 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT
@@ -140,6 +133,16 @@ try {
   /* column already exists */
 }
 
+try {
+  const hasOldSessions = db.prepare("SELECT name FROM pragma_table_info('sessions') WHERE name='user_id'").get();
+  if (hasOldSessions) {
+    db.exec('DROP TABLE sessions');
+    console.log('Migrated: replaced legacy sessions table');
+  }
+} catch (e) {
+  /* table may not exist */
+}
+
 export const queries = {
   getUserByUsername: db.prepare('SELECT * FROM users WHERE username = ?'),
   getUserById: db.prepare('SELECT * FROM users WHERE id = ?'),
@@ -148,11 +151,6 @@ export const queries = {
   updateUserLimits: db.prepare('INSERT OR REPLACE INTO user_limits (user_id, daily_limit_cents, monthly_limit_cents) VALUES (?, ?, ?)'),
   getUserLimits: db.prepare('SELECT * FROM user_limits WHERE user_id = ?'),
   getAllUsers: db.prepare('SELECT u.*, ul.daily_limit_cents, ul.monthly_limit_cents FROM users u LEFT JOIN user_limits ul ON u.id = ul.user_id'),
-
-  getSession: db.prepare('SELECT * FROM sessions WHERE id = ?'),
-  createSession: db.prepare('INSERT INTO sessions (id, user_id) VALUES (?, ?)'),
-  deleteSession: db.prepare('DELETE FROM sessions WHERE id = ?'),
-  deleteUserSessions: db.prepare('DELETE FROM sessions WHERE user_id = ?'),
 
   getSetting: db.prepare('SELECT value FROM settings WHERE key = ?'),
   setSetting: db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)'),

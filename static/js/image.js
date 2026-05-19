@@ -52,6 +52,9 @@ async function loadModels() {
         modelSelect.value = model.id;
         modelFilterInput.value = model.name || model.id;
       }
+    } else if (imageModels.length > 0) {
+      modelSelect.value = imageModels[0].id;
+      modelFilterInput.value = imageModels[0].name || imageModels[0].id;
     }
   } catch (e) {
     statusEl.innerHTML = '<div class="error">Failed to load models</div>';
@@ -257,6 +260,7 @@ modelDropdown.addEventListener('click', (e) => {
   if (item) {
     modelSelect.value = item.dataset.value;
     modelFilterInput.value = item.textContent;
+    localStorage.setItem('lastModelId', item.dataset.value);
     modelDropdown.classList.remove('open');
   }
 });

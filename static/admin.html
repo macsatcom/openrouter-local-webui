@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -7,6 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#141414">
   <link rel="manifest" href="/manifest.json">
+  <script>(function(){var t=localStorage.getItem('theme');if(t){document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name=\"theme-color\"]');if(m)m.content=t==='light'?'#f5f3f0':'#141414';}})();</script>
   <title>OpenRouter Local WebUI - Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,6 +24,10 @@
     </nav>
     <div class="user-info">
       <span id="username"></span>
+      <select id="themeSelect" class="theme-select">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+      </select>
       <span class="badge">Admin</span>
     </div>
   </header>
@@ -349,6 +354,18 @@
       window.location.href = '/login';
     }
     document.getElementById('username').textContent = localStorage.getItem('username') || '';
+    (function(){
+      var sel = document.getElementById('themeSelect');
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (sel) {
+        sel.value = localStorage.getItem('theme') || 'dark';
+        sel.addEventListener('change', function(){
+          document.documentElement.dataset.theme = sel.value;
+          localStorage.setItem('theme', sel.value);
+          if (meta) meta.content = sel.value === 'light' ? '#f5f3f0' : '#141414';
+        });
+      }
+    })();
   </script>
 </body>
 </html>

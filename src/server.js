@@ -10,6 +10,7 @@ import adminRoutes from './routes/admin.js';
 import { optionalAuth } from './auth.js';
 import db from './db.js';
 import { warmMcpCaches } from './mcp-client.js';
+import SQLiteSessionStore from './session-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -19,13 +20,16 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(session({
+  store: new SQLiteSessionStore(db, {
+    ttl: 30 * 24 * 60 * 60
+  }),
   secret: process.env.SESSION_SECRET || 'openrouter-local-webui-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000
+    maxAge: 30 * 24 * 60 * 60 * 1000
   }
 }));
 
