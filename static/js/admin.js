@@ -128,6 +128,7 @@ async function loadUsers() {
   const data = await res.json();
   allUsers = data.users;
   adminModels = data.admin_models || [];
+  renderOnlineModelList();
   const table = document.getElementById('usersTable');
   table.innerHTML = data.users.map(u => {
     const modelCount = u.exposed_models ? u.exposed_models.length : 0;

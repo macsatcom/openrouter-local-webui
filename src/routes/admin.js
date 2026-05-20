@@ -1,6 +1,6 @@
 import express from 'express';
 import { requireAdmin, requireAuth } from '../auth.js';
-import { queries, getSetting, getLoggingEnabled, setLoggingEnabled, getOpenRouterApiKey, setOpenRouterApiKey, getUserExposedModels, setUserExposedModels, getOnlineModels, setOnlineModels } from '../db.js';
+import { queries, getSetting, setSetting, getLoggingEnabled, setLoggingEnabled, getOpenRouterApiKey, setOpenRouterApiKey, getUserExposedModels, setUserExposedModels, getOnlineModels, setOnlineModels } from '../db.js';
 import { hashPassword } from '../auth.js';
 import { connectToMcpServers, listToolsFromClients, disconnectMcpClients } from '../mcp-client.js';
 import db from '../db.js';
