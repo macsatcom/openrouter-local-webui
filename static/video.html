@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.json">
+  <script>(function(){var t=localStorage.getItem('theme');if(t){document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==='light'?'#f5f3f0':'#141414';}})();</script>
+  <title>OpenRouter Local WebUI - Video Generation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="scrollable">
+  <header class="header">
+    <h1>OpenRouter Local WebUI</h1>
+    <nav>
+      <a href="/chat">Chat</a>
+      <a href="/image">Image Gen</a>
+      <a href="/video" class="active">Video Gen<span class="nav-badge hidden" id="videoBadge"></span></a>
+      <a href="/api/auth/logout" onclick="logout(event)">Logout</a>
+    </nav>
+    <div class="user-info">
+      <span id="username"></span>
+      <select id="themeSelect" class="theme-select">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h2>Generate Video</h2>
+
+      <div class="model-select">
+        <div class="model-picker">
+          <input type="text" id="modelFilter" class="model-search" placeholder="Search models..." autocomplete="off">
+          <div class="model-dropdown" id="modelDropdown"></div>
+          <input type="hidden" id="modelSelect" value="">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="prompt">Prompt</label>
+        <textarea id="prompt" rows="3" placeholder="Describe the video you want to generate..."></textarea>
+      </div>
+
+      <div class="form-group" id="refImageGroup">
+        <label>Reference Images</label>
+        <div class="ref-image-area" id="refFirstFrameArea">
+          <input type="file" id="refFirstFrameInput" accept="image/png,image/jpeg,image/webp" hidden>
+          <button class="btn btn-ghost" id="refFirstFrameBtn" type="button">First frame</button>
+          <div class="ref-image-preview hidden" id="refFirstFramePreview">
+            <img id="refFirstFramePreviewImg" src="">
+            <button class="ref-image-remove" id="refFirstFrameRemove" type="button">&times;</button>
+          </div>
+        </div>
+        <div class="ref-image-area" id="refLastFrameArea">
+          <input type="file" id="refLastFrameInput" accept="image/png,image/jpeg,image/webp" hidden>
+          <button class="btn btn-ghost" id="refLastFrameBtn" type="button">Last frame</button>
+          <div class="ref-image-preview hidden" id="refLastFramePreview">
+            <img id="refLastFramePreviewImg" src="">
+            <button class="ref-image-remove" id="refLastFrameRemove" type="button">&times;</button>
+          </div>
+        </div>
+        <div class="ref-image-area" id="refStyleArea">
+          <input type="file" id="refStyleInput" accept="image/png,image/jpeg,image/webp" hidden>
+          <button class="btn btn-ghost" id="refStyleBtn" type="button">Style reference</button>
+          <div class="ref-image-preview hidden" id="refStylePreview">
+            <img id="refStylePreviewImg" src="">
+            <button class="ref-image-remove" id="refStyleRemove" type="button">&times;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="options-group">
+        <button class="options-toggle" id="optionsToggle" type="button">Options</button>
+        <div class="options-panel hidden" id="optionsPanel">
+          <div class="options-grid">
+            <div class="form-group">
+              <label for="duration">Duration (s)</label>
+              <select id="duration">
+                <option value="5">5</option>
+                <option value="8">8</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="resolution">Resolution</label>
+              <select id="resolution">
+                <option value="720p">720p</option>
+                <option value="1080p">1080p</option>
+                <option value="480p">480p</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="aspectRatio">Aspect Ratio</label>
+              <select id="aspectRatio">
+                <option value="16:9">16:9 (Landscape)</option>
+                <option value="9:16">9:16 (Portrait)</option>
+                <option value="1:1">1:1 (Square)</option>
+                <option value="4:3">4:3 (Standard)</option>
+                <option value="3:4">3:4 (Portrait)</option>
+                <option value="21:9">21:9 (Ultrawide)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="audioToggle">Generate Audio</label>
+              <label class="toggle-row">
+                <input type="checkbox" id="audioToggle" checked>
+                <span>Audio</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="generateBtn" style="width:100%">Generate Video</button>
+      <div id="status" style="margin-top: 10px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>Your Videos</h2>
+      <div class="tab-bar" id="videoTabs">
+        <button class="tab-btn active" data-status="">All</button>
+        <button class="tab-btn" data-status="pending">Pending</button>
+        <button class="tab-btn" data-status="completed">Completed</button>
+        <button class="tab-btn" data-status="failed">Failed</button>
+      </div>
+      <div class="video-grid" id="videoGrid"></div>
+      <div id="loadMore" style="text-align: center; margin-top: 20px;">
+        <button class="btn" id="loadMoreBtn">Load More</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container hidden"></div>
+
+  <div class="lightbox" id="videoLightbox" onclick="closeVideoPlayer()">
+    <span class="lightbox-close">&times;</span>
+    <video id="lightboxVideo" controls autoplay style="max-width: 90%; max-height: 90%;"></video>
+  </div>
+
+  <script src="/js/video.js"></script>
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+  <script>
+    async function logout(e) {
+      e.preventDefault();
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login';
+    }
+    document.getElementById('username').textContent = localStorage.getItem('username') || '';
+    (function(){
+      var sel = document.getElementById('themeSelect');
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (sel) {
+        sel.value = localStorage.getItem('theme') || 'dark';
+        sel.addEventListener('change', function(){
+          document.documentElement.dataset.theme = sel.value;
+          localStorage.setItem('theme', sel.value);
+          if (meta) meta.content = sel.value === 'light' ? '#f5f3f0' : '#141414';
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
