@@ -12,16 +12,20 @@ const router = express.Router();
 
 async function fetchAllModels(apiKey) {
   try {
-    const [generalRes, imageRes] = await Promise.all([
+    const [generalRes, imageRes, videoRes] = await Promise.all([
       fetch('https://openrouter.ai/api/v1/models', {
         headers: { 'Authorization': `Bearer ${apiKey}` }
       }),
       fetch('https://openrouter.ai/api/v1/models?output_modalities=image', {
         headers: { 'Authorization': `Bearer ${apiKey}` }
+      }),
+      fetch('https://openrouter.ai/api/v1/videos/models', {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
       })
     ]);
     const generalData = generalRes.ok ? await generalRes.json() : { data: [] };
     const imageData = imageRes.ok ? await imageRes.json() : { data: [] };
+    const videoData = videoRes.ok ? await videoRes.json() : { data: [] };
     const modelMap = new Map();
     for (const m of (generalData.data || [])) {
       modelMap.set(m.id, m);
@@ -29,6 +33,14 @@ async function fetchAllModels(apiKey) {
     for (const m of (imageData.data || [])) {
       if (!modelMap.has(m.id)) {
         modelMap.set(m.id, m);
+      }
+    }
+    for (const m of (videoData.data || [])) {
+      if (!modelMap.has(m.id)) {
+        const skus = m.pricing_skus || {};
+        const prices = Object.values(skus).map(p => parseFloat(p)).filter(p => !isNaN(p));
+        const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+        modelMap.set(m.id, { ...m, pricing: { prompt: String(minPrice), completion: '0' }, is_video: true });
       }
     }
     return Array.from(modelMap.values());
@@ -167,7 +179,9 @@ router.get('/models', requireAdmin, async (req, res) => {
       const promptPrice = m.pricing?.prompt ? formatPrice(m.pricing.prompt) : '?';
       const completionPrice = m.pricing?.completion ? formatPrice(m.pricing.completion) : '?';
       const isOnline = onlineModels.includes(m.id);
-      const displayName = `${m.name || m.id}${isOnline ? ' [online]' : ''} (${promptPrice} / ${completionPrice})`;
+      const isVideo = m.is_video === true;
+      const videoTag = isVideo ? ' [video]' : '';
+      const displayName = `${m.name || m.id}${videoTag}${isOnline ? ' [online]' : ''} (${promptPrice} / ${completionPrice})`;
       return {
         id: m.id,
         name: m.name || m.id,
