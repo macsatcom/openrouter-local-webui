@@ -51,17 +51,17 @@ async function pollActiveJobs() {
             saveVideoFromBuffer(buffer, filename);
 
             const cost = status.usage?.cost || 0;
-            db.prepare('UPDATE video_logs SET status = ?, video_path = ?, cost = ?, completed_at = datetime("now"), error = ? WHERE id = ?')
+            db.prepare(`UPDATE video_logs SET status = ?, video_path = ?, cost = ?, completed_at = datetime('now'), error = ? WHERE id = ?`)
               .run('completed', filename, cost, null, job.id);
 
             db.prepare('INSERT OR IGNORE INTO video_notifications (user_id, video_id) VALUES (?, ?)')
               .run(job.user_id, job.id);
           } else {
-            db.prepare('UPDATE video_logs SET status = ?, error = ? WHERE id = ?')
+            db.prepare(`UPDATE video_logs SET status = ?, error = ?, completed_at = datetime('now') WHERE id = ?`)
               .run('failed', 'Failed to download video', job.id);
           }
         } else if (['failed', 'cancelled', 'expired'].includes(newStatus)) {
-          db.prepare('UPDATE video_logs SET status = ?, error = ?, completed_at = datetime("now") WHERE id = ?')
+          db.prepare(`UPDATE video_logs SET status = ?, error = ?, completed_at = datetime('now') WHERE id = ?`)
             .run(newStatus, status.error || `Job ${newStatus}`, job.id);
         } else if (newStatus !== job.status) {
           db.prepare('UPDATE video_logs SET status = ? WHERE id = ?')

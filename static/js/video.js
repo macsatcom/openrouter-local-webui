@@ -49,6 +49,9 @@ async function checkAuth() {
     if (!res.ok) throw new Error();
     const data = await res.json();
     localStorage.setItem('username', data.user.username);
+    if (data.user.is_admin) {
+      document.getElementById('adminLink').classList.remove('hidden');
+    }
   } catch {
     window.location.href = '/login';
   }
