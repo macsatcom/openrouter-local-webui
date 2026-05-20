@@ -7,6 +7,8 @@ import chatRoutes from './routes/chat.js';
 import conversationsRoutes from './routes/conversations.js';
 import imageRoutes from './routes/image.js';
 import adminRoutes from './routes/admin.js';
+import videoRoutes from './routes/video.js';
+import { startVideoWorker } from './video-worker.js';
 import { optionalAuth } from './auth.js';
 import db from './db.js';
 import { warmMcpCaches } from './mcp-client.js';
@@ -47,6 +49,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/image', imageRoutes);
+app.use('/api/video', videoRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'static')));
@@ -72,6 +75,13 @@ app.get('/image', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'static', 'image.html'));
 });
 
+app.get('/video', (req, res) => {
+  if (!req.user) {
+    return res.redirect('/login.html');
+  }
+  res.sendFile(path.join(__dirname, '..', 'static', 'video.html'));
+});
+
 app.get('/admin', (req, res) => {
   if (!req.user || !req.user.is_admin) {
     return res.redirect('/chat');
@@ -92,6 +102,7 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   console.log(`OpenRouter Local WebUI running on http://localhost:${PORT}`);
+  startVideoWorker();
 
   try {
     const enabledServers = db.prepare('SELECT * FROM mcp_servers WHERE enabled = 1').all();
