@@ -125,6 +125,35 @@ db.exec(`
     UNIQUE(user_id, key),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS video_logs (
+    id           TEXT PRIMARY KEY,
+    user_id      INTEGER NOT NULL,
+    model        TEXT NOT NULL,
+    prompt       TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'pending',
+    job_id       TEXT,
+    video_path   TEXT,
+    duration     INTEGER,
+    resolution   TEXT,
+    aspect_ratio TEXT,
+    has_audio    INTEGER DEFAULT 0,
+    cost         REAL DEFAULT 0,
+    error        TEXT,
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS video_notifications (
+    user_id    INTEGER NOT NULL,
+    video_id   TEXT NOT NULL,
+    seen       INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, video_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (video_id) REFERENCES video_logs(id) ON DELETE CASCADE
+  );
 `);
 
 try {
@@ -201,7 +230,20 @@ export const queries = {
 
   getUserMemories: db.prepare('SELECT key, value FROM user_memories WHERE user_id = ? ORDER BY key'),
   upsertUserMemory: db.prepare('INSERT INTO user_memories (user_id, key, value) VALUES (?, ?, ?) ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'),
-  deleteUserMemory: db.prepare('DELETE FROM user_memories WHERE user_id = ? AND key = ?')
+  deleteUserMemory: db.prepare('DELETE FROM user_memories WHERE user_id = ? AND key = ?'),
+
+  logVideo: db.prepare('INSERT INTO video_logs (id, user_id, model, prompt, status, job_id, duration, resolution, aspect_ratio, has_audio, cost, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
+  updateVideoStatus: db.prepare('UPDATE video_logs SET status = ?, video_path = ?, cost = ?, completed_at = ?, error = ? WHERE id = ?'),
+  getVideoLogsByUser: db.prepare('SELECT vl.*, u.username FROM video_logs vl JOIN users u ON vl.user_id = u.id WHERE vl.user_id = ? ORDER BY vl.created_at DESC LIMIT ? OFFSET ?'),
+  getVideoLogs: db.prepare('SELECT vl.*, u.username FROM video_logs vl JOIN users u ON vl.user_id = u.id ORDER BY vl.created_at DESC LIMIT ? OFFSET ?'),
+  countVideoLogsByUser: db.prepare('SELECT COUNT(*) as count FROM video_logs WHERE user_id = ?'),
+  countVideoLogs: db.prepare('SELECT COUNT(*) as count FROM video_logs'),
+  getActiveVideoJobs: db.prepare("SELECT * FROM video_logs WHERE status IN ('pending', 'in_progress')"),
+  getVideoById: db.prepare('SELECT * FROM video_logs WHERE id = ?'),
+  insertVideoNotification: db.prepare('INSERT OR IGNORE INTO video_notifications (user_id, video_id) VALUES (?, ?)'),
+  getUnseenNotifications: db.prepare('SELECT vn.*, vl.prompt, vl.status FROM video_notifications vn JOIN video_logs vl ON vn.video_id = vl.id WHERE vn.user_id = ? AND vn.seen = 0 ORDER BY vn.created_at DESC'),
+  markNotificationsSeen: db.prepare('UPDATE video_notifications SET seen = 1 WHERE user_id = ?'),
+  markVideoNotificationSeen: db.prepare('UPDATE video_notifications SET seen = 1 WHERE user_id = ? AND video_id = ?')
 };
 
 export function getSetting(key, defaultValue = null) {
@@ -290,6 +332,14 @@ export function checkUserSpendingLimit(userId) {
 export function recordSpending(userId, cents) {
   const today = new Date().toISOString().split('T')[0];
   queries.updateSpending.run(userId, today, cents, cents);
+}
+
+export function getMaxVideoResolution() {
+  return getSetting('max_video_resolution', '');
+}
+
+export function getMaxVideoDuration() {
+  return parseInt(getSetting('max_video_duration', '0')) || 0;
 }
 
 export default db;
