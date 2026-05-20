@@ -233,7 +233,7 @@ export const queries = {
   deleteUserMemory: db.prepare('DELETE FROM user_memories WHERE user_id = ? AND key = ?'),
 
   logVideo: db.prepare('INSERT INTO video_logs (id, user_id, model, prompt, status, job_id, duration, resolution, aspect_ratio, has_audio, cost, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
-  updateVideoStatus: db.prepare('UPDATE video_logs SET status = ?, video_path = ?, cost = ?, completed_at = ?, error = ? WHERE id = ?'),
+  updateVideoJobResult: db.prepare('UPDATE video_logs SET status = ?, video_path = ?, cost = ?, completed_at = ?, error = ? WHERE id = ?'),
   getVideoLogsByUser: db.prepare('SELECT vl.*, u.username FROM video_logs vl JOIN users u ON vl.user_id = u.id WHERE vl.user_id = ? ORDER BY vl.created_at DESC LIMIT ? OFFSET ?'),
   getVideoLogs: db.prepare('SELECT vl.*, u.username FROM video_logs vl JOIN users u ON vl.user_id = u.id ORDER BY vl.created_at DESC LIMIT ? OFFSET ?'),
   countVideoLogsByUser: db.prepare('SELECT COUNT(*) as count FROM video_logs WHERE user_id = ?'),
@@ -243,7 +243,9 @@ export const queries = {
   insertVideoNotification: db.prepare('INSERT OR IGNORE INTO video_notifications (user_id, video_id) VALUES (?, ?)'),
   getUnseenNotifications: db.prepare('SELECT vn.*, vl.prompt, vl.status FROM video_notifications vn JOIN video_logs vl ON vn.video_id = vl.id WHERE vn.user_id = ? AND vn.seen = 0 ORDER BY vn.created_at DESC'),
   markNotificationsSeen: db.prepare('UPDATE video_notifications SET seen = 1 WHERE user_id = ?'),
-  markVideoNotificationSeen: db.prepare('UPDATE video_notifications SET seen = 1 WHERE user_id = ? AND video_id = ?')
+  markVideoNotificationSeen: db.prepare('UPDATE video_notifications SET seen = 1 WHERE user_id = ? AND video_id = ?'),
+  deleteVideoLog: db.prepare('DELETE FROM video_logs WHERE id = ?'),
+  deleteVideoNotification: db.prepare('DELETE FROM video_notifications WHERE video_id = ?')
 };
 
 export function getSetting(key, defaultValue = null) {
