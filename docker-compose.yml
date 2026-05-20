@@ -8,12 +8,15 @@ services:
     volumes:
       - openrouter-data:/app/data
       - openrouter-images:/app/generated-images
+      - openrouter-videos:/app/generated-videos
     environment:
       - DB_PATH=/app/data/chat.db
       - IMAGES_DIR=/app/generated-images
+      - VIDEOS_DIR=/app/generated-videos
       - SESSION_SECRET=${SESSION_SECRET:-change-this-in-production}
     restart: unless-stopped
 
 volumes:
   openrouter-data:
   openrouter-images:
+  openrouter-videos:

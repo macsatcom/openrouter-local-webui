@@ -20,6 +20,7 @@
     <nav>
       <a href="/chat">Chat</a>
       <a href="/image" class="active">Image Gen</a>
+      <a href="/video">Video Gen<span class="nav-badge hidden" id="videoBadge"></span></a>
       <a href="/api/auth/logout" onclick="logout(event)">Logout</a>
     </nav>
     <div class="user-info">
@@ -171,5 +172,17 @@
       }
     })();
   </script>
+<script>
+(function pollVideoBadge() {
+  fetch('/api/video/notifications').then(function(r){return r.json()}).then(function(data){
+    var badge = document.getElementById('videoBadge');
+    if (badge) {
+      if (data.count > 0) { badge.textContent = data.count; badge.classList.remove('hidden'); }
+      else { badge.classList.add('hidden'); }
+    }
+  }).catch(function(){});
+  setTimeout(pollVideoBadge, 10000);
+})();
+</script>
 </body>
 </html>
