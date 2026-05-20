@@ -6,6 +6,7 @@ let userSelectedModels = [];
 let onlineSelectedModels = [];
 let chatLogsOffset = 0;
 let imageLogsOffset = 0;
+let videoLogsOffset = 0;
 
 async function checkAdmin() {
   try {
@@ -28,6 +29,7 @@ document.querySelectorAll('.admin-tabs button').forEach(btn => {
     if (btn.dataset.tab === 'users') loadUsers();
     if (btn.dataset.tab === 'chat-logs') loadChatLogs();
     if (btn.dataset.tab === 'image-logs') loadImageLogs();
+    if (btn.dataset.tab === 'video-logs') loadVideoLogs();
     if (btn.dataset.tab === 'skills') loadSkills();
     if (btn.dataset.tab === 'mcp') loadMcpServers();
   });
@@ -40,6 +42,8 @@ async function loadSettings() {
   document.getElementById('loggingEnabled').checked = data.logging_enabled;
   onlineSelectedModels = data.online_models || [];
   renderOnlineModelList(onlineSelectedModels);
+  document.getElementById('maxVideoResolution').value = data.max_video_resolution || '';
+  document.getElementById('maxVideoDuration').value = data.max_video_duration || '0';
 }
 
 async function loadAllModels() {
@@ -66,6 +70,18 @@ async function saveLogging() {
     body: JSON.stringify({ logging_enabled: enabled })
   });
   alert('Logging setting saved');
+}
+
+async function saveVideoLimits() {
+  await fetch('/api/admin/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      max_video_resolution: document.getElementById('maxVideoResolution').value,
+      max_video_duration: document.getElementById('maxVideoDuration').value
+    })
+  });
+  alert('Video limits saved');
 }
 
 function getOnlineModelPool() {
@@ -138,6 +154,10 @@ async function loadUsers() {
   const options = data.users.map(u => `<option value="${u.id}">${u.username}</option>`).join('');
   chatUserSelect.innerHTML = '<option value="">All Users</option>' + options;
   imageUserSelect.innerHTML = '<option value="">All Users</option>' + options;
+  const videoUserSelect = document.getElementById('videoLogUser');
+  if (videoUserSelect) {
+    videoUserSelect.innerHTML = '<option value="">All Users</option>' + options;
+  }
 }
 
 function showCreateUser() {
@@ -431,6 +451,37 @@ async function loadImageLogs(offset = 0) {
   } else {
     pagination.innerHTML = '';
   }
+}
+
+async function loadVideoLogs(offset) {
+  if (offset === undefined) offset = 0;
+  videoLogsOffset = offset;
+  const userId = document.getElementById('videoLogUser').value;
+  const url = '/api/admin/video-logs?limit=20&offset=' + offset + (userId ? '&user_id=' + userId : '');
+  const res = await fetch(url);
+  const data = await res.json();
+  const table = document.getElementById('videoLogsTable');
+  if (data.logs.length === 0) {
+    table.innerHTML = '<tr><td colspan="8">No videos found</td></tr>';
+  } else {
+    table.innerHTML = data.logs.map(function(l) {
+      return '<tr>' +
+        '<td>' + escapeHtml(l.username) + '</td>' +
+        '<td>' + escapeHtml((l.prompt || '').slice(0, 50)) + '</td>' +
+        '<td>' + l.status + '</td>' +
+        '<td>' + (l.duration || '-') + 's</td>' +
+        '<td>' + (l.resolution || '-') + '</td>' +
+        '<td>' + (l.video_path ? '<video src="/api/video/download/' + l.id + '" width="80" controls preload="metadata"></video>' : '-') + '</td>' +
+        '<td>$' + (l.cost || 0).toFixed(4) + '</td>' +
+        '<td>' + new Date(l.created_at).toLocaleString() + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+  var total = data.total || 0;
+  var pagination = document.getElementById('videoLogsPagination');
+  pagination.innerHTML = '';
+  if (offset > 0) pagination.innerHTML += '<button class="btn" onclick="loadVideoLogs(' + (offset - 20) + ')">Previous</button> ';
+  if (offset + 20 < total) pagination.innerHTML += '<button class="btn" onclick="loadVideoLogs(' + (offset + 20) + ')">Next</button>';
 }
 
 function openLightbox(src) {

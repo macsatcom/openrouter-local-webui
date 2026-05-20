@@ -39,6 +39,7 @@
       <button data-tab="settings">Settings</button>
       <button data-tab="chat-logs">Chat Logs</button>
       <button data-tab="image-logs">Image Logs</button>
+      <button data-tab="video-logs">Video Logs</button>
       <button data-tab="skills">Skills</button>
       <button data-tab="mcp">MCP Servers</button>
       <button data-tab="marketplace">Marketplace</button>
@@ -93,6 +94,24 @@
         </label>
         <button class="btn" style="margin-top: 10px;" onclick="saveLogging()">Save</button>
       </div>
+
+      <div class="card">
+        <h3>Video Generation Limits</h3>
+        <div class="form-group">
+          <label>Max Video Resolution</label>
+          <select id="maxVideoResolution">
+            <option value="">No limit</option>
+            <option value="480p">480p</option>
+            <option value="720p">720p</option>
+            <option value="1080p">1080p</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Max Video Duration (seconds, 0 = no limit)</label>
+          <input type="number" id="maxVideoDuration" min="0" max="300" value="0">
+        </div>
+        <button class="btn" onclick="saveVideoLimits()">Save Video Limits</button>
+      </div>
     </div>
 
     <div id="chat-logs" class="admin-section">
@@ -144,6 +163,25 @@
           <tbody id="imageLogsTable"></tbody>
         </table>
         <div id="imageLogsPagination" style="margin-top: 15px; text-align: center;"></div>
+      </div>
+    </div>
+
+    <div id="video-logs" class="admin-section">
+      <div class="card">
+        <h2>Video Logs</h2>
+        <div style="margin-bottom: 10px;">
+          <select id="videoLogUser" style="width: auto; margin-right: 10px;">
+            <option value="">All Users</option>
+          </select>
+          <button class="btn" onclick="loadVideoLogs()">Filter</button>
+        </div>
+        <table>
+          <thead><tr>
+            <th>User</th><th>Prompt</th><th>Status</th><th>Duration</th><th>Res</th><th>Preview</th><th>Cost</th><th>Created</th>
+          </tr></thead>
+          <tbody id="videoLogsTable"></tbody>
+        </table>
+        <div id="videoLogsPagination" style="margin-top: 15px; text-align: center;"></div>
       </div>
     </div>
 

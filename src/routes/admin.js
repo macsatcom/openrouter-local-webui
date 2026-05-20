@@ -305,12 +305,14 @@ router.get('/settings', requireAdmin, (req, res) => {
   res.json({
     openrouter_api_key: getOpenRouterApiKey() || '',
     logging_enabled: getLoggingEnabled(),
-    online_models: getOnlineModels()
+    online_models: getOnlineModels(),
+    max_video_resolution: getSetting('max_video_resolution', ''),
+    max_video_duration: getSetting('max_video_duration', '0')
   });
 });
 
 router.put('/settings', requireAdmin, (req, res) => {
-  const { openrouter_api_key, logging_enabled, online_models } = req.body;
+  const { openrouter_api_key, logging_enabled, online_models, max_video_resolution, max_video_duration } = req.body;
   if (openrouter_api_key !== undefined) {
     setOpenRouterApiKey(openrouter_api_key);
   }
@@ -319,6 +321,12 @@ router.put('/settings', requireAdmin, (req, res) => {
   }
   if (online_models !== undefined && Array.isArray(online_models)) {
     setOnlineModels(online_models);
+  }
+  if (max_video_resolution !== undefined) {
+    setSetting('max_video_resolution', max_video_resolution);
+  }
+  if (max_video_duration !== undefined) {
+    setSetting('max_video_duration', String(max_video_duration));
   }
   res.json({ success: true });
 });
@@ -339,6 +347,30 @@ router.get('/image-logs', requireAdmin, (req, res) => {
   const logs = userId ? queries.getImageLogsByUser.all(userId, limit, offset) : queries.getImageLogs.all(limit, offset);
   const count = userId ? queries.countImageLogsByUser.get(userId).count : queries.countImageLogs.get().count;
   res.json({ logs, total: count });
+});
+
+router.get('/video-logs', requireAdmin, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+  const offset = parseInt(req.query.offset) || 0;
+  const userId = req.query.user_id ? parseInt(req.query.user_id) : null;
+  const logs = userId ? queries.getVideoLogsByUser.all(userId, limit, offset) : queries.getVideoLogs.all(limit, offset);
+  const count = userId ? queries.countVideoLogsByUser.get(userId).count : queries.countVideoLogs.get().count;
+  res.json({ logs, total: count });
+});
+
+router.get('/video-models', requireAdmin, async (req, res) => {
+  const apiKey = getSetting('openrouter_api_key');
+  if (!apiKey) return res.json({ models: [] });
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/videos/models', {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (!response.ok) return res.json({ models: [] });
+    const data = await response.json();
+    res.json({ models: data.data || [] });
+  } catch {
+    res.json({ models: [] });
+  }
 });
 
 router.get('/skills', requireAdmin, (req, res) => {
