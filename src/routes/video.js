@@ -67,7 +67,11 @@ router.get('/models', requireAuth, async (req, res) => {
       supported_resolutions: m.supported_resolutions || [],
       supported_aspect_ratios: m.supported_aspect_ratios || [],
       supported_frame_images: m.supported_frame_images || []
-    }))
+    })),
+    admin_limits: {
+      max_resolution: maxRes || null,
+      max_duration: getMaxVideoDuration() || null
+    }
   });
 });
 

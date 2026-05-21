@@ -100,8 +100,10 @@ app.use((req, res) => {
   res.status(404).send('Not found');
 });
 
-app.listen(PORT, () => {
-  console.log(`OpenRouter Local WebUI running on http://localhost:${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+  console.log(`OpenRouter Local WebUI running on http://${HOST}:${PORT}`);
   startVideoWorker();
 
   try {

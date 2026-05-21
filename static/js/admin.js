@@ -463,11 +463,12 @@ async function loadVideoLogs(offset) {
   const data = await res.json();
   const table = document.getElementById('videoLogsTable');
   if (data.logs.length === 0) {
-    table.innerHTML = '<tr><td colspan="8">No videos found</td></tr>';
+    table.innerHTML = '<tr><td colspan="9">No videos found</td></tr>';
   } else {
     table.innerHTML = data.logs.map(function(l) {
       return '<tr>' +
         '<td>' + escapeHtml(l.username) + '</td>' +
+        '<td>' + escapeHtml(l.model || '-') + '</td>' +
         '<td>' + escapeHtml((l.prompt || '').slice(0, 50)) + '</td>' +
         '<td>' + l.status + '</td>' +
         '<td>' + (l.duration || '-') + 's</td>' +

@@ -1553,6 +1553,14 @@ tr:hover td {
   color: var(--text-2);
 }
 
+.clickable-prompt {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.clickable-prompt:hover {
+  color: var(--accent);
+}
+
 .video-card .actions {
   padding: 8px 12px;
   display: flex;

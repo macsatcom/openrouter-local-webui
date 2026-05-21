@@ -36,6 +36,7 @@ const refStyleRemove = document.getElementById('refStyleRemove');
 let offset = 0;
 let loading = false;
 let videoModels = [];
+let adminLimits = {};
 let currentStatus = '';
 let activeJobIds = new Set();
 let lastNotificationCount = 0;
@@ -62,14 +63,16 @@ async function loadModels() {
     const res = await fetch('/api/video/models');
     const data = await res.json();
     videoModels = data.models;
+    adminLimits = data.admin_limits || {};
     renderDropdown(videoModels);
     const lastModel = localStorage.getItem('lastVideoModelId');
     if (lastModel) {
       const model = videoModels.find(m => m.id === lastModel);
-      if (model) { modelSelect.value = model.id; modelFilterInput.value = model.name || model.id; }
+      if (model) { modelSelect.value = model.id; modelFilterInput.value = model.name || model.id; updateOptionsForModel(model.id); }
     } else if (videoModels.length > 0) {
       modelSelect.value = videoModels[0].id;
       modelFilterInput.value = videoModels[0].name || videoModels[0].id;
+      updateOptionsForModel(videoModels[0].id);
     }
   } catch (e) {
     statusEl.innerHTML = '<div class="error">Failed to load models</div>';
@@ -158,16 +161,25 @@ async function loadVideos(reset) {
   }
 }
 
+function usePrompt(prompt) {
+  promptEl.value = prompt;
+  promptEl.focus();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function buildVideoCard(log) {
   const card = document.createElement('div');
   card.className = 'video-card';
   card.id = 'video-' + log.id;
+  const escapedPrompt = escapeHtml(log.prompt);
+  const escapedPromptShort = escapeHtml(log.prompt_short);
+  const promptAttr = log.prompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   if (log.status === 'completed') {
     card.innerHTML =
       '<video src="' + log.video_url + '" preload="metadata" muted onclick="openVideoPlayer(\'' + log.video_url + '\')"></video>' +
       '<div class="play-overlay" onclick="openVideoPlayer(\'' + log.video_url + '\')">&#9654;</div>' +
-      '<div class="info">' + escapeHtml(log.prompt_short) + '</div>' +
+      '<div class="info clickable-prompt" data-prompt="' + promptAttr + '">' + escapedPromptShort + '</div>' +
       '<div class="info">' + new Date(log.created_at).toLocaleString() + ' | ' + (log.resolution || '') + ' | ' + (log.duration || '') + 's</div>' +
       '<div class="info">Cost: $' + (log.cost || 0).toFixed(4) + '</div>' +
       '<div class="actions">' +
@@ -177,7 +189,7 @@ function buildVideoCard(log) {
   } else if (log.status === 'pending' || log.status === 'in_progress') {
     card.innerHTML =
       '<div class="video-card-pending"><span class="loading"></span><br>' + (log.status === 'in_progress' ? 'Generating...' : 'Queued...') + '</div>' +
-      '<div class="info">' + escapeHtml(log.prompt_short) + '</div>' +
+      '<div class="info clickable-prompt" data-prompt="' + promptAttr + '">' + escapedPromptShort + '</div>' +
       '<div class="info">' + new Date(log.created_at).toLocaleString() + '</div>' +
       '<div class="actions">' +
         '<button class="btn btn-danger" onclick="deleteVideo(\'' + log.id + '\', this)">Cancel</button>' +
@@ -185,13 +197,19 @@ function buildVideoCard(log) {
   } else if (log.status === 'failed') {
     card.innerHTML =
       '<div class="video-card-failed">&#10060; Failed</div>' +
-      '<div class="info">' + escapeHtml(log.prompt_short) + '</div>' +
+      '<div class="info clickable-prompt" data-prompt="' + promptAttr + '">' + escapedPromptShort + '</div>' +
       '<div class="info">' + new Date(log.created_at).toLocaleString() + '</div>' +
       '<div class="info">' + escapeHtml(log.error || 'Unknown error') + '</div>' +
       '<div class="actions">' +
         '<button class="btn btn-danger" onclick="deleteVideo(\'' + log.id + '\', this)">Delete</button>' +
       '</div>';
   }
+
+  card.querySelectorAll('.clickable-prompt').forEach(function(el) {
+    el.addEventListener('click', function() {
+      usePrompt(el.dataset.prompt);
+    });
+  });
 
   return card;
 }
@@ -275,6 +293,42 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function resolutionRank(r) {
+  const ranks = { '480p': 1, '720p': 2, '1080p': 3, '1K': 3, '2K': 4, '4K': 5 };
+  return ranks[r] || 0;
+}
+
+function updateOptionsForModel(modelId) {
+  const model = videoModels.find(m => m.id === modelId);
+  if (!model) return;
+
+  const maxRes = adminLimits.max_resolution;
+  const maxDur = adminLimits.max_duration;
+
+  const allDurations = (model.supported_durations || []).slice();
+  const allResolutions = (model.supported_resolutions || []).slice();
+
+  let durations = allDurations;
+  if (maxDur) {
+    durations = allDurations.filter(function(d) { return d <= maxDur; });
+  }
+  durations.sort(function(a, b) { return a - b; });
+
+  let resolutions = allResolutions;
+  if (maxRes) {
+    resolutions = allResolutions.filter(function(r) { return resolutionRank(r) <= resolutionRank(maxRes); });
+  }
+  resolutions.sort(function(a, b) { return resolutionRank(a) - resolutionRank(b); });
+
+  durationEl.innerHTML = durations.length
+    ? durations.map(function(d) { return '<option value="' + d + '">' + d + '</option>'; }).join('')
+    : '<option value="">No options available</option>';
+
+  resolutionEl.innerHTML = resolutions.length
+    ? resolutions.map(function(r) { return '<option value="' + r + '">' + r + '</option>'; }).join('')
+    : '<option value="">No options available</option>';
+}
+
 function renderDropdown(models) {
   modelDropdown.innerHTML = models.map(function(m) {
     return '<div class="model-dropdown-item" data-value="' + m.id + '">' + (m.name || m.id) + '</div>';
@@ -352,6 +406,7 @@ modelDropdown.addEventListener('click', function(e) {
     modelFilterInput.value = item.textContent;
     localStorage.setItem('lastVideoModelId', item.dataset.value);
     modelDropdown.classList.remove('open');
+    updateOptionsForModel(item.dataset.value);
   }
 });
 
