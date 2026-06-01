@@ -35,6 +35,29 @@ const chatAttachPreview = document.getElementById('chatAttachPreview');
 const chatAttachPreviewImg = document.getElementById('chatAttachPreviewImg');
 const chatAttachRemove = document.getElementById('chatAttachRemove');
 const chatAttachPdfLabel = document.getElementById('chatAttachPdfLabel');
+const chatBanners = document.getElementById('chatBanners');
+
+function clearBanners() {
+  if (chatBanners) chatBanners.innerHTML = '';
+}
+
+function showBanner(status) {
+  if (!chatBanners || !status) return;
+  const severity = status.severity || 'info';
+  const div = document.createElement('div');
+  div.className = `chat-banner chat-banner-${severity}`;
+  const content = document.createElement('div');
+  content.className = 'chat-banner-content';
+  content.textContent = status.message || '';
+  const close = document.createElement('button');
+  close.className = 'chat-banner-close';
+  close.setAttribute('aria-label', 'Dismiss');
+  close.innerHTML = '&times;';
+  close.onclick = () => div.remove();
+  div.appendChild(content);
+  div.appendChild(close);
+  chatBanners.appendChild(div);
+}
 
 let currentUser = null;
 let currentConversationId = null;
@@ -203,14 +226,14 @@ async function loadModels() {
 }
 
 async function loadSkills() {
-  if (!currentUser?.is_admin) {
-    skillSelectWrap.style.display = 'none';
-    return;
-  }
   try {
     const res = await fetch('/api/admin/skills');
+    if (!res.ok) {
+      skillSelectWrap.style.display = 'none';
+      return;
+    }
     const data = await res.json();
-    skillOptions = data.skills.map(s => ({ id: s.id, name: s.name }));
+    skillOptions = (data.skills || []).map(s => ({ id: s.id, name: s.name }));
     if (skillOptions.length === 0) {
       skillSelectWrap.style.display = 'none';
     } else {
@@ -428,6 +451,8 @@ async function sendMessage() {
   const content = inputEl.value.trim();
   if (!content && !attachedImageBase64) return;
 
+  clearBanners();
+
   const model = modelSelect.value;
   if (!model) {
     alert('Please select a model');
@@ -607,6 +632,9 @@ async function sendMessage() {
                 localStorage.setItem(LAST_MODEL_KEY, model);
                 loadConversations();
               }
+              if (data.status) {
+                showBanner(data.status);
+              }
               if (data.error) {
                 contentEl.innerHTML = `<div class="error">Error: ${data.error}</div>`;
               }
@@ -687,9 +715,11 @@ function closeSidebar() {
 }
 
 function renderDropdown(models) {
-  modelDropdown.innerHTML = models.map(m =>
-    `<div class="model-dropdown-item" data-value="${m.id}">${m.name || m.id}</div>`
-  ).join('');
+  modelDropdown.innerHTML = models.map(m => {
+    const isOnline = m.id?.endsWith(':online');
+    const tip = isOnline ? ' title="Web search is enabled for this model: every prompt is augmented with live web search results."' : '';
+    return `<div class="model-dropdown-item" data-value="${m.id}"${tip}>${m.name || m.id}</div>`;
+  }).join('');
 }
 
 function filterDropdown(term) {
@@ -699,9 +729,11 @@ function filterDropdown(term) {
   if (filtered.length === 0) {
     modelDropdown.innerHTML = '<div class="model-dropdown-empty">No models found</div>';
   } else {
-    modelDropdown.innerHTML = filtered.map(m =>
-      `<div class="model-dropdown-item" data-value="${m.id}">${m.name || m.id}</div>`
-    ).join('');
+    modelDropdown.innerHTML = filtered.map(m => {
+      const isOnline = m.id?.endsWith(':online');
+      const tip = isOnline ? ' title="Web search is enabled for this model: every prompt is augmented with live web search results."' : '';
+      return `<div class="model-dropdown-item" data-value="${m.id}"${tip}>${m.name || m.id}</div>`;
+    }).join('');
   }
 }
 

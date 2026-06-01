@@ -2,7 +2,7 @@ import express from 'express';
 import { requireAdmin, requireAuth } from '../auth.js';
 import { queries, getSetting, setSetting, getLoggingEnabled, setLoggingEnabled, getOpenRouterApiKey, setOpenRouterApiKey, getUserExposedModels, setUserExposedModels, getOnlineModels, setOnlineModels } from '../db.js';
 import { hashPassword } from '../auth.js';
-import { connectToMcpServers, listToolsFromClients, disconnectMcpClients } from '../mcp-client.js';
+import { connectToMcpServers, listToolsFromClients, disconnectMcpClients, invalidateMcpServer } from '../mcp-client.js';
 import db from '../db.js';
 import fs from 'fs';
 import path from 'path';
@@ -387,7 +387,7 @@ router.get('/video-models', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/skills', requireAdmin, (req, res) => {
+router.get('/skills', requireAuth, (req, res) => {
   const skills = queries.getAllSkills.all();
   res.json({ skills });
 });
@@ -556,12 +556,14 @@ router.put('/mcp/servers/:id', requireAdmin, (req, res) => {
     enabled !== undefined ? (enabled ? 1 : 0) : 1,
     serverId
   );
+  invalidateMcpServer(serverId);
   res.json({ success: true });
 });
 
 router.delete('/mcp/servers/:id', requireAdmin, (req, res) => {
   const serverId = parseInt(req.params.id);
   queries.deleteMcpServer.run(serverId);
+  invalidateMcpServer(serverId);
   res.json({ success: true });
 });
 
@@ -572,9 +574,10 @@ router.post('/mcp/servers/:id/test', requireAdmin, async (req, res) => {
     return res.status(404).json({ error: 'MCP server not found' });
   }
   try {
-    const clients = await connectToMcpServers([server]);
+    const { clients, failures } = await connectToMcpServers([server]);
     if (clients.length === 0) {
-      return res.json({ success: false, error: 'Failed to connect' });
+      const reason = failures[0]?.reason || 'Failed to connect';
+      return res.json({ success: false, error: reason });
     }
     const result = await listToolsFromClients(clients);
     await disconnectMcpClients(clients);

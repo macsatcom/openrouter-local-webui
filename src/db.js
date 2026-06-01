@@ -163,6 +163,12 @@ try {
 }
 
 try {
+  db.exec('ALTER TABLE mcp_servers ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP');
+} catch (e) {
+  /* column already exists */
+}
+
+try {
   const hasOldSessions = db.prepare("SELECT name FROM pragma_table_info('sessions') WHERE name='user_id'").get();
   if (hasOldSessions) {
     db.exec('DROP TABLE sessions');
@@ -225,7 +231,7 @@ export const queries = {
   getMcpServerById: db.prepare('SELECT * FROM mcp_servers WHERE id = ?'),
   getEnabledMcpServers: db.prepare('SELECT * FROM mcp_servers WHERE enabled = 1 ORDER BY name'),
   createMcpServer: db.prepare('INSERT INTO mcp_servers (name, description, transport_type, command, args, url, auth_token, env, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'),
-  updateMcpServer: db.prepare('UPDATE mcp_servers SET name = ?, description = ?, transport_type = ?, command = ?, args = ?, url = ?, auth_token = ?, env = ?, enabled = ? WHERE id = ?'),
+  updateMcpServer: db.prepare('UPDATE mcp_servers SET name = ?, description = ?, transport_type = ?, command = ?, args = ?, url = ?, auth_token = ?, env = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   deleteMcpServer: db.prepare('DELETE FROM mcp_servers WHERE id = ?'),
 
   getUserMemories: db.prepare('SELECT key, value FROM user_memories WHERE user_id = ? ORDER BY key'),

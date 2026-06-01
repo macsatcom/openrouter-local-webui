@@ -93,6 +93,8 @@ function getOnlineModelPool() {
 
 function renderOnlineModelList(savedModels) {
   onlineSelectedModels = savedModels || onlineSelectedModels;
+  const warnEl = document.getElementById('onlineModelsWarning');
+  if (warnEl) warnEl.style.display = onlineSelectedModels.length === 0 ? 'block' : 'none';
   const listEl = document.getElementById('onlineModelList');
   if (allModels.length === 0) {
     listEl.innerHTML = '<p style="color:#888; padding:10px;">No models available. Configure API key first.</p>';
@@ -232,6 +234,8 @@ document.getElementById('onlineModelList').addEventListener('change', (e) => {
     } else {
       onlineSelectedModels = onlineSelectedModels.filter(id => id !== e.target.value);
     }
+    const warnEl = document.getElementById('onlineModelsWarning');
+    if (warnEl) warnEl.style.display = onlineSelectedModels.length === 0 ? 'block' : 'none';
   }
 });
 

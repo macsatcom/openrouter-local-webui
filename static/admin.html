@@ -80,7 +80,9 @@
 
       <div class="card">
         <h2>Online Models (Web Search)</h2>
-        <p style="color:#888; margin-bottom: 10px;">Select which models should have web search enabled (":online" suffix will be added automatically).</p>
+        <p style="color:#888; margin-bottom: 6px;">Select which models should have web search enabled. The <code>:online</code> suffix is added automatically and uses OpenRouter's <code>web</code> plugin to inject live search results into every prompt.</p>
+        <p style="color:#888; margin-bottom: 10px; font-size: 0.9em;">Note: web search adds extra cost per request (typically ~$0.004 per query) on top of the model's normal token pricing.</p>
+        <div id="onlineModelsWarning" style="display:none; color:#b58900; background:#fffbe6; border:1px solid #f5e6a8; padding:8px 10px; border-radius:4px; margin-bottom:10px;">No online models configured. Users will not see any <code>[online]</code> options in the chat model picker.</div>
         <input type="text" id="onlineModelFilter" class="model-search" placeholder="Filter models..." oninput="renderOnlineModelList()" style="margin-bottom: 6px;">
         <div class="model-list" id="onlineModelList" style="height: 250px;"></div>
         <button class="btn" style="margin-top: 10px;" onclick="saveOnlineModels()">Save Online Models</button>

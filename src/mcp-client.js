@@ -65,27 +65,119 @@ function withTimeout(promise, ms, label) {
 const MCP_CONNECT_TIMEOUT = 15000;
 const MCP_TOOL_TIMEOUT = 30000;
 const MAX_TOOL_RESULT_CHARS = 8000;
+const MCP_IDLE_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+// Module-level connection cache: serverId -> { client, transport, prefix, name, configHash, lastUsed, idleTimer }
+const mcpCache = new Map();
+
+function configHashForServer(server) {
+  return [
+    server.id,
+    server.updated_at || '',
+    server.transport_type,
+    server.command || '',
+    server.args || '',
+    server.url || '',
+    server.auth_token || '',
+    server.env || '',
+    server.enabled
+  ].join('|');
+}
+
+function scheduleIdleTeardown(serverId) {
+  const entry = mcpCache.get(serverId);
+  if (!entry) return;
+  if (entry.idleTimer) clearTimeout(entry.idleTimer);
+  entry.idleTimer = setTimeout(() => {
+    const current = mcpCache.get(serverId);
+    if (!current) return;
+    if (Date.now() - current.lastUsed < MCP_IDLE_TIMEOUT) {
+      scheduleIdleTeardown(serverId);
+      return;
+    }
+    mcpCache.delete(serverId);
+    current.client.close().catch(err => {
+      console.error(`MCP: Error closing idle client "${current.name}":`, err.message);
+    });
+    console.log(`MCP: Closed idle client "${current.name}" after ${MCP_IDLE_TIMEOUT / 60000} min`);
+  }, MCP_IDLE_TIMEOUT);
+}
+
+export function invalidateMcpServer(serverId) {
+  const entry = mcpCache.get(serverId);
+  if (!entry) return;
+  mcpCache.delete(serverId);
+  if (entry.idleTimer) clearTimeout(entry.idleTimer);
+  entry.client.close().catch(err => {
+    console.error(`MCP: Error invalidating client "${entry.name}":`, err.message);
+  });
+  console.log(`MCP: Invalidated cached client "${entry.name}"`);
+}
+
+async function connectSingleServer(server) {
+  const prefix = sanitizePrefix(server.name) + '_';
+  const client = new Client({
+    name: 'openrouter-webui',
+    version: '1.0.0'
+  });
+  const transport = createTransport(server);
+  await withTimeout(client.connect(transport), MCP_CONNECT_TIMEOUT, 'MCP connect ' + server.name);
+  return { client, transport, prefix, name: server.name };
+}
 
 export async function connectToMcpServers(serverConfigs) {
   const clients = [];
+  const failures = [];
 
   for (const server of serverConfigs) {
-    const prefix = sanitizePrefix(server.name) + '_';
-    try {
-      const client = new Client({
-        name: 'openrouter-webui',
-        version: '1.0.0'
-      });
+    const hash = configHashForServer(server);
+    const cached = mcpCache.get(server.id);
 
-      const transport = createTransport(server);
-      await withTimeout(client.connect(transport), MCP_CONNECT_TIMEOUT, 'MCP connect ' + server.name);
-      clients.push({ client, transport, prefix, name: server.name });
+    if (cached && cached.configHash === hash) {
+      cached.lastUsed = Date.now();
+      scheduleIdleTeardown(server.id);
+      clients.push({
+        client: cached.client,
+        transport: cached.transport,
+        prefix: cached.prefix,
+        name: cached.name,
+        _cached: true
+      });
+      continue;
+    }
+
+    if (cached && cached.configHash !== hash) {
+      invalidateMcpServer(server.id);
+    }
+
+    try {
+      const entry = await connectSingleServer(server);
+      const cacheEntry = {
+        ...entry,
+        configHash: hash,
+        lastUsed: Date.now(),
+        idleTimer: null
+      };
+      mcpCache.set(server.id, cacheEntry);
+      scheduleIdleTeardown(server.id);
+      clients.push({
+        client: entry.client,
+        transport: entry.transport,
+        prefix: entry.prefix,
+        name: entry.name,
+        _cached: false
+      });
     } catch (err) {
       console.error(`MCP: Failed to connect to "${server.name}":`, err.message);
+      failures.push({
+        serverId: server.id,
+        name: server.name,
+        reason: err.message || String(err)
+      });
     }
   }
 
-  return clients;
+  return { clients, failures };
 }
 
 export async function listToolsFromClients(clients) {
@@ -186,6 +278,7 @@ export async function warmMcpCaches(serverConfigs) {
 
 export async function disconnectMcpClients(clients) {
   for (const entry of clients) {
+    if (entry._cached) continue; // Cached clients are managed by idle timer
     try {
       await entry.client.close();
     } catch (err) {

@@ -146,6 +146,7 @@ router.post('/chat', requireAuth, async (req, res) => {
   let mcpClients = null;
   let mcpTools = null;
   let toolMap = null;
+  let mcpFailures = [];
 
   if (mcp_server_ids && mcp_server_ids.length > 0) {
     const serverConfigs = mcp_server_ids
@@ -154,10 +155,56 @@ router.post('/chat', requireAuth, async (req, res) => {
       .filter(s => s.enabled);
 
     if (serverConfigs.length > 0) {
-      mcpClients = await connectToMcpServers(serverConfigs);
+      const connectResult = await connectToMcpServers(serverConfigs);
+      mcpClients = connectResult.clients;
+      mcpFailures = connectResult.failures || [];
       const result = await listToolsFromClients(mcpClients);
       mcpTools = result.tools;
       toolMap = result.toolMap;
+    }
+  }
+
+  // Emit MCP connection failures as status events before streaming starts
+  for (const failure of mcpFailures) {
+    res.write(`data: ${JSON.stringify({
+      status: {
+        code: 'mcp_connect_failed',
+        severity: 'error',
+        server: failure.name,
+        message: `MCP server "${failure.name}" failed to connect: ${failure.reason}`
+      }
+    })}\n\n`);
+  }
+
+  // Online (web search) plugin + system nudge
+  const isOnlineModel = model.endsWith(':online');
+  const onlinePlugins = isOnlineModel ? [{ id: 'web', max_results: 5 }] : null;
+  if (isOnlineModel) {
+    systemMessages.push({
+      role: 'system',
+      content: 'You have web search enabled. The latest user query has been augmented with current web search results injected into your context. Use them to answer; do not claim you cannot browse.'
+    });
+  }
+
+  // Tool-support precheck: warn if MCP tools selected but model doesn't support them
+  if (mcpTools && mcpTools.length > 0) {
+    try {
+      const baseModelId = model.replace(/:online$/, '');
+      const allModels = await fetchModels(apiKey);
+      const modelMeta = allModels.find(m => m.id === baseModelId);
+      const supportsTools = modelMeta?.supported_parameters?.includes('tools');
+      if (modelMeta && !supportsTools) {
+        res.write(`data: ${JSON.stringify({
+          status: {
+            code: 'model_no_tools',
+            severity: 'warning',
+            message: `Model "${baseModelId}" does not support tool calling. MCP tools will be ignored for this request.`
+          }
+        })}\n\n`);
+        mcpTools = null;
+      }
+    } catch (e) {
+      console.error('Tool-support precheck failed:', e.message);
     }
   }
 
@@ -172,10 +219,14 @@ router.post('/chat', requireAuth, async (req, res) => {
         model,
         messages: currentMessages,
         max_tokens: effectiveMaxTokens,
-        stream: true
+        stream: true,
+        usage: { include: true }
       };
       if (toolsToSend) {
         body.tools = toolsToSend;
+      }
+      if (onlinePlugins) {
+        body.plugins = onlinePlugins;
       }
 
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -232,7 +283,7 @@ router.post('/chat', requireAuth, async (req, res) => {
                   toolCallsAccumulator[idx] = { id: '', name: '', arguments: '' };
                 }
                 if (tc.id) toolCallsAccumulator[idx].id = tc.id;
-                if (tc.function?.name) toolCallsAccumulator[idx].name += tc.function.name;
+                if (tc.function?.name) toolCallsAccumulator[idx].name = toolCallsAccumulator[idx].name || tc.function.name;
                 if (tc.function?.arguments) toolCallsAccumulator[idx].arguments += tc.function.arguments;
               }
             }
@@ -297,7 +348,7 @@ router.post('/chat', requireAuth, async (req, res) => {
           });
         }
 
-        toolsToSend = undefined;
+        // Keep toolsToSend so model can make additional tool calls in next round
         continue;
       }
 

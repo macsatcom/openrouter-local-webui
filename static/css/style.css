@@ -1652,3 +1652,58 @@ tr:hover td {
 .tab-btn:hover {
   color: var(--text);
 }
+
+/* Chat banners (MCP errors, online warnings, etc.) */
+.chat-banners {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px 0;
+}
+.chat-banners:empty {
+  padding: 0;
+}
+.chat-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border-left: 4px solid;
+  font-size: 14px;
+  line-height: 1.4;
+  background: var(--color-bg-secondary, #f5f5f5);
+  color: var(--color-text, #222);
+}
+.chat-banner-error {
+  background: #fdecea;
+  border-left-color: #d32f2f;
+  color: #611a15;
+}
+.chat-banner-warning {
+  background: #fff4e5;
+  border-left-color: #ed6c02;
+  color: #663c00;
+}
+.chat-banner-info {
+  background: #e8f4fd;
+  border-left-color: #0288d1;
+  color: #014361;
+}
+.chat-banner-content {
+  flex: 1;
+  word-break: break-word;
+}
+.chat-banner-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+  color: inherit;
+  opacity: 0.6;
+}
+.chat-banner-close:hover {
+  opacity: 1;
+}
