@@ -167,7 +167,7 @@ function addColumnIfMissing(table, column, definition) {
 }
 
 addColumnIfMissing('mcp_servers', 'env', 'TEXT');
-addColumnIfMissing('mcp_servers', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+addColumnIfMissing('mcp_servers', 'updated_at', 'DATETIME');
 
 try {
   const hasOldSessions = db.prepare("SELECT name FROM pragma_table_info('sessions') WHERE name='user_id'").get();
