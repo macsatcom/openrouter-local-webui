@@ -156,17 +156,18 @@ db.exec(`
   );
 `);
 
-try {
-  db.exec('ALTER TABLE mcp_servers ADD COLUMN env TEXT');
-} catch (e) {
-  /* column already exists */
+function addColumnIfMissing(table, column, definition) {
+  const exists = db.prepare(
+    `SELECT COUNT(*) as n FROM pragma_table_info('${table}') WHERE name = ?`
+  ).get(column);
+  if (!exists || !exists.n) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    console.log(`[db] migrated: added ${table}.${column}`);
+  }
 }
 
-try {
-  db.exec('ALTER TABLE mcp_servers ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP');
-} catch (e) {
-  /* column already exists */
-}
+addColumnIfMissing('mcp_servers', 'env', 'TEXT');
+addColumnIfMissing('mcp_servers', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
 
 try {
   const hasOldSessions = db.prepare("SELECT name FROM pragma_table_info('sessions') WHERE name='user_id'").get();
